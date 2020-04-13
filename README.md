@@ -25,7 +25,7 @@ It also offers a way to generate accessor methods for:
 
 ## Example
 
-More documentation on accessor generators will come eventually, but for now, here's a demonstration of the classiness and information hiding:
+There will be more thorough documentation eventually, including how to generate and use accessors, but here's an example using all four `$$.struct` options: `params`, `construct`, `proto`, and `statics`.
 
 ```javascript
 var Counter = $$.struct({
@@ -64,19 +64,40 @@ var Counter = $$.struct({
   // Members to copy onto the `Counter` prototype object.
   proto: {
     toString: function () {
-      return '[Counter start=' + this.start + ' value=' + this.value() + ']';
+      return '[Counter ' + this.start + '...' + this.value() + ']';
+    }
+  },
+  
+  // Members to attach to the `Counter` function itself.
+  statics: {
+  	// Combine two counters' values into a single counter.
+    combine: function (counter1, counter2) {
+      return new Counter({
+        start: counter1.value() + counter2.value()
+      });
     }
   }
 });
 
-var c = new Counter({
+var c1 = new Counter({
   start: 5
 });
-c.inc();
-console.log(c.value()); // 6
-console.log(String(c)); // "[Counter start=5, value=6]"
-c.inc().inc();
-console.log(String(c)); // "[Counter start=5, value=8]"
+console.log(c1.value()); // 5
+c1.inc();
+console.log(c1.value()); // 6
+console.log(String(c1)); // "[Counter 5...6]"
+
+var c2 = new Counter();
+console.log(c2.value()); // 0
+c2.inc().inc();
+console.log(c2.value()); // 2
+console.log(String(c2)); // "[Counter 0...2]"
+
+var c3 = Counter.combine(c1, c2);
+console.log(c3.value()); // 8
+c3.inc();
+console.log(c3.value()); // 9
+console.log(String(c3)); // "[Counter 8...9]"
 ```
 
 ## Pronunciation
