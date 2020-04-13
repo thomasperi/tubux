@@ -3,9 +3,14 @@
 
 ## Installation
 
-To install with npm, type: `npm i -S tubux`
+### npm
+* Install: `npm i tubux`
+* Require: `var $$ = require("tubux");`
 
-To load it directly on a web page old-school style, [download a release](https://github.com/thomasperi/tubux/releases) and use `dist/tubux.min.js`.
+### Web
+To load it directly on a web page old-school style:
+* [Download a release](https://github.com/thomasperi/tubux/releases)
+* The file you need is `dist/tubux.min.js`
 
 ## About
 
