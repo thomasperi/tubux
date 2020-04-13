@@ -1,0 +1,27 @@
+{
+  "name": "tubux",
+  "version": "0.0.1-alpha",
+  "description": "Classy Constructors in JavaScript",
+  "main": "dist/tubux.min.js",
+  "scripts": {
+    "test": "gulp test",
+    "preversion": "npm test",
+    "postversion": "git push && git push --tags"
+  },
+  "homepage": "https://github.com/thomasperi/tubux#readme",
+  "author": "Thomas Peri <hello@thomasperi.net>",
+  "license": "MIT",
+  "devDependencies": {
+    "@thomasperi/raise-comments": "^1.0.0",
+    "@thomasperi/umd-pullup": "^1.0.0",
+    "gulp": "^4.0.2",
+    "gulp-jshint": "^2.1.0",
+    "gulp-minify": "^3.1.0",
+    "gulp-mocha": "^7.0.2",
+    "gulp-regex-rename": "^0.1.0",
+    "gulp-umd": "^2.0.0",
+    "gulp4-run-sequence": "^1.0.0",
+    "jshint": "^2.11.0",
+    "mocha": "^7.1.1"
+  }
+}
