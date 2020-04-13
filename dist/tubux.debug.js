@@ -1,6 +1,6 @@
 (function(P,U,L){L(U,P);}(this,function(){'use strict';
 /*!
- * Tubux v0.0.1-alpha
+ * Tubux v0.0.1
  * https://github.com/thomasperi/tubux#readme
  * Thomas Peri <hello@thomasperi.net>
  * MIT License
