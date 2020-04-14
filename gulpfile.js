@@ -64,7 +64,8 @@ task('lint', true, function() {
 	return (gulp
 		.src(files.debug)
 		.pipe(jshint({
-			'undef': true
+			'undef': true,
+			'unused': true
 		}))
 		.pipe(jshint.reporter('default'))
 	);

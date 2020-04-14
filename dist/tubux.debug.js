@@ -13,17 +13,20 @@ var ERROR_WRITEONLY = 'this accessor is write-only',
 
 // Public $$ object
 var $$ = {
+	// Expose functionality.
 	accessor: accessor,
 	assign: assign,
 	struct: struct,
 
-	debug: false,
-	
+	// Expose error messages for comparison purposes.
 	errors: {
 		WRITEONLY: ERROR_WRITEONLY,
 		READONLY: ERROR_READONLY,
 		HIDDEN: ERROR_HIDDEN
-	}
+	},
+	
+	// Don't change this value here. Only set it from outside.
+	debug: false
 };
 
 // Aid minification with some shortcuts.
@@ -323,6 +326,9 @@ function throw_hidden() {
 	throw ERROR_HIDDEN;
 }
 
+// Define a function for internal debugging that can be turned on and off again
+// in individual unit tests, rather than writing debugging info to the console
+// and having all the tests dumping tons of useless output.
 function debug(msg) {
 	if ($$.debug) {
 		/*global console */
@@ -330,11 +336,19 @@ function debug(msg) {
 	}
 }
 
+// Call debug so jshint doesn't complain that it's unused.
+// (This won't do anything, because $$.debug is false
+// until it gets set to true by something outside the module.)
+// Setting /*jshint unused: false */ didn't work for some reason,
+// possibly because I've set it true in the gulpfile.
+debug();
+
+
 return $$;
 
 
 }, function (factory, root) {
-	/*global require, define, exports, module */
+	/*global define, exports, module */
 	'use strict';
 	
 	var library,
@@ -372,9 +386,19 @@ return $$;
 		// If the library doesn't define its own `noConflict` method,
 		// define a new one that reverts the property on the root object
 		// and returns the library for reassignment.
-		if (hasOriginal && !library[hop](noc)) {
+		if (!library[hop](noc)) {
 			library[noc] = function () {
-				root[n] = original;
+				if (hasOriginal) {
+					root[n] = original;
+				} else {
+					delete root[n];
+				}
+				// Once noConflict has been called once, replace it with a new
+				// function that just returns the library, to avoid unexpected
+				// consequences if it's accidentally called again.
+				library[noc] = function () {
+					return library;
+				};
 				return library;
 			};
 		}

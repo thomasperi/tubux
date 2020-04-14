@@ -1,6 +1,6 @@
 
 /*!
- * Tubux v1.0.0
+ * Tubux v1.0.1
  * https://github.com/thomasperi/tubux#readme
  * Thomas Peri <hello@thomasperi.net>
  * MIT License
@@ -13,17 +13,20 @@ var ERROR_WRITEONLY = 'this accessor is write-only',
 
 // Public $$ object
 var $$ = {
+	// Expose functionality.
 	accessor: accessor,
 	assign: assign,
 	struct: struct,
 
-	debug: false,
-	
+	// Expose error messages for comparison purposes.
 	errors: {
 		WRITEONLY: ERROR_WRITEONLY,
 		READONLY: ERROR_READONLY,
 		HIDDEN: ERROR_HIDDEN
-	}
+	},
+	
+	// Don't change this value here. Only set it from outside.
+	debug: false
 };
 
 // Aid minification with some shortcuts.
@@ -323,9 +326,19 @@ function throw_hidden() {
 	throw ERROR_HIDDEN;
 }
 
+// Define a function for internal debugging that can be turned on and off again
+// in individual unit tests, rather than writing debugging info to the console
+// and having all the tests dumping tons of useless output.
 function debug(msg) {
 	if ($$.debug) {
 		/*global console */
 		console.log(msg);
 	}
 }
+
+// Call debug so jshint doesn't complain that it's unused.
+// (This won't do anything, because $$.debug is false
+// until it gets set to true by something outside the module.)
+// Setting /*jshint unused: false */ didn't work for some reason,
+// possibly because I've set it true in the gulpfile.
+debug();
