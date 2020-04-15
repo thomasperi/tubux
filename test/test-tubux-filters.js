@@ -6,7 +6,8 @@ require('./test-tubux.js')(function ($$) {
 		it('filter direct', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.filter(function (val) {
 							return typeof val === 'string' ?
 								val.toUpperCase() :
@@ -27,7 +28,8 @@ require('./test-tubux.js')(function ($$) {
 		it('filter readonly direct', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.readonly()
 						.filter(function (val) {
 							return typeof val === 'string' ?
@@ -54,7 +56,8 @@ require('./test-tubux.js')(function ($$) {
 		it('filter writeonly direct', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.writeonly()
 						.filter(function (val) {
 							return typeof val === 'string' ?
@@ -81,7 +84,8 @@ require('./test-tubux.js')(function ($$) {
 		it('filter hidden direct', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.hidden()
 						.filter(function (val) {
 							return typeof val === 'string' ?
@@ -108,7 +112,7 @@ require('./test-tubux.js')(function ($$) {
 		it('filter in constructor', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John').accessor()
 				},
 				construct: function () {
 					this.name
@@ -132,7 +136,9 @@ require('./test-tubux.js')(function ($$) {
 		it('filter readonly in constructor', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').readonly()
+					name: $$('John')
+						.accessor()
+						.readonly()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -161,7 +167,9 @@ require('./test-tubux.js')(function ($$) {
 		it('filter writeonly in constructor', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').writeonly()
+					name: $$('John')
+						.accessor()
+						.writeonly()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -190,7 +198,9 @@ require('./test-tubux.js')(function ($$) {
 		it('filter hidden in constructor', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').hidden()
+					name: $$('John')
+						.accessor()
+						.hidden()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -219,7 +229,7 @@ require('./test-tubux.js')(function ($$) {
 		it('filter outside', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John').accessor()
 				}
 			});
 
@@ -241,7 +251,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').readonly()
+					name: $$('John')
+						.accessor()
+						.readonly()
 				}
 			});
 
@@ -254,7 +266,8 @@ require('./test-tubux.js')(function ($$) {
 				});
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.READONLY);
+				assert.equal(e.message, $$.errors.READONLY);
+				assert.equal(e.key, 'name');
 			}
 		});
 
@@ -262,7 +275,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').writeonly()
+					name: $$('John')
+						.accessor()
+						.writeonly()
 				}
 			});
 
@@ -275,7 +290,8 @@ require('./test-tubux.js')(function ($$) {
 				});
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.WRITEONLY);
+				assert.equal(e.message, $$.errors.WRITEONLY);
+				assert.equal(e.key, 'name');
 			}
 		});
 
@@ -283,7 +299,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').hidden()
+					name: $$('John')
+						.accessor()
+						.hidden()
 				}
 			});
 
@@ -296,7 +314,8 @@ require('./test-tubux.js')(function ($$) {
 				});
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.HIDDEN);
+				assert.equal(e.message, $$.errors.HIDDEN);
+				assert.equal(e.key, 'name');
 			}
 		});
 		

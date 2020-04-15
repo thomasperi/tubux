@@ -8,7 +8,8 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.listen(function (value) {
 							external = value;
 						})
@@ -28,7 +29,8 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.readonly()
 						.listen(function (value) {
 							external = value;
@@ -54,7 +56,8 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.readonly()
 						.listen(function (value) {
 							external = value;
@@ -80,7 +83,8 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John')
+						.accessor()
 						.hidden()
 						.listen(function (value) {
 							external = value;
@@ -106,7 +110,7 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John').accessor()
 				},
 				construct: function () {
 					this.name
@@ -129,7 +133,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').readonly()
+					name: $$('John')
+						.accessor()
+						.readonly()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -157,7 +163,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').writeonly()
+					name: $$('John')
+						.accessor()
+						.writeonly()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -181,7 +189,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').hidden()
+					name: $$('John')
+						.accessor()
+						.hidden()
 				},
 				construct: function () {
 					var name = this.name.ready();
@@ -209,7 +219,7 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John').accessor()
 				}
 			});
 
@@ -227,7 +237,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').readonly()
+					name: $$('John')
+						.accessor()
+						.readonly()
 				},
 				construct: function () {
 					$$.assign(this, {
@@ -250,7 +262,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').writeonly()
+					name: $$('John')
+						.accessor()
+						.writeonly()
 				}
 			});
 
@@ -261,7 +275,8 @@ require('./test-tubux.js')(function ($$) {
 				});
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.WRITEONLY);
+				assert.equal(e.message, $$.errors.WRITEONLY);
+				assert.equal(e.key, 'name');
 			}
 
 			p.name('Earl');
@@ -274,7 +289,9 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').hidden()
+					name: $$('John')
+						.accessor()
+						.hidden()
 				},
 				construct: function () {
 					$$.assign(this, {
@@ -290,7 +307,8 @@ require('./test-tubux.js')(function ($$) {
 				});
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.HIDDEN);
+				assert.equal(e.message, $$.errors.HIDDEN);
+				assert.equal(e.key, 'name');
 			}
 
 			p.name_inner('Earl');

@@ -3,10 +3,118 @@ require('./test-tubux.js')(function ($$) {
 
 	describe('Accessors Test', () => {
 		
+		it('required proxy without accessor', function () {
+			var Person = $$.struct({
+				params: {
+					name: $$('John').required()
+				}
+			});
+			var p = new Person({
+				name: 'John'
+			});
+			assert.equal(p.name, 'John');
+			
+			try {
+				var p = new Person()
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.REQUIRED);
+				assert.equal(e.key, 'name');
+			}
+		});
+
+		it('required proxy with accessor', function () {
+			var Person = $$.struct({
+				params: {
+					name: $$('John')
+						.accessor()
+						.required()
+				}
+			});
+			var p = new Person({
+				name: 'John'
+			});
+			assert.equal(p.name(), 'John');
+			
+			try {
+				var p = new Person();
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.REQUIRED);
+				assert.equal(e.key, 'name');
+			}
+		});
+		
+		it('accessor-only flags', function () {
+			try {
+				var Person = $$.struct({
+					params: {
+						name: $$('John').readonly()
+					}
+				});
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.ACCESSORONLY);
+				assert.equal(e.key, 'readonly');
+			}
+
+			try {
+				var Person = $$.struct({
+					params: {
+						name: $$('John').writeonly()
+					}
+				});
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.ACCESSORONLY);
+				assert.equal(e.key, 'writeonly');
+			}
+
+			try {
+				var Person = $$.struct({
+					params: {
+						name: $$('John').hidden()
+					}
+				});
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.ACCESSORONLY);
+				assert.equal(e.key, 'hidden');
+			}
+
+			try {
+				var Person = $$.struct({
+					params: {
+						name: $$('John').filter(function (val) {
+							return val;
+						})
+					}
+				});
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.ACCESSORONLY);
+				assert.equal(e.key, 'filter');
+			}
+			
+			try {
+				var Person = $$.struct({
+					params: {
+						name: $$('John').listen(function (val) {
+							return val;
+						})
+					}
+				});
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.ACCESSORONLY);
+				assert.equal(e.key, 'listen');
+			}
+		});
+		
 		it('read-write', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John')
+					name: $$('John').accessor()
 				},
 				construct: function () {
 					this.name_inner = this.name.ready();
@@ -25,7 +133,9 @@ require('./test-tubux.js')(function ($$) {
 		it('readonly', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').readonly()
+					name: $$('John')
+						.accessor()
+						.readonly()
 				},
 				construct: function () {
 					this.name_inner = this.name.ready();
@@ -41,7 +151,8 @@ require('./test-tubux.js')(function ($$) {
 				p.name('Jake');
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.READONLY);
+				assert.equal(e.message, $$.errors.READONLY);
+				assert.equal(e.key, 'name');
 			}
 			assert.equal(p.name(), 'John')
 
@@ -56,7 +167,9 @@ require('./test-tubux.js')(function ($$) {
 		it('writeonly', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').writeonly()
+					name: $$('John')
+						.accessor()
+						.writeonly()
 				},
 				construct: function () {
 					this.name_inner = this.name.ready();
@@ -69,7 +182,8 @@ require('./test-tubux.js')(function ($$) {
 				p.name();
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.WRITEONLY);
+				assert.equal(e.message, $$.errors.WRITEONLY);
+				assert.equal(e.key, 'name');
 			}
 			
 			// Private getter should succeed
@@ -88,7 +202,9 @@ require('./test-tubux.js')(function ($$) {
 		it('hidden', function () {
 			var Person = $$.struct({
 				params: {
-					name: $$.accessor('John').hidden()
+					name: $$('John')
+						.accessor()
+						.hidden()
 				},
 				construct: function () {
 					this.name_inner = this.name.ready();
@@ -101,7 +217,8 @@ require('./test-tubux.js')(function ($$) {
 				p.name('Jane');
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.HIDDEN);
+				assert.equal(e.message, $$.errors.HIDDEN);
+				assert.equal(e.key, 'name');
 			}
 			
 			// Public getter should fail
@@ -110,7 +227,8 @@ require('./test-tubux.js')(function ($$) {
 				p.name();
 				assert(false);
 			} catch(e) {
-				assert.equal(e, $$.errors.HIDDEN);
+				assert.equal(e.message, $$.errors.HIDDEN);
+				assert.equal(e.key, 'name');
 			}
 
 			// Private getter should succeed

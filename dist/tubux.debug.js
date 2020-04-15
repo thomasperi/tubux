@@ -7,36 +7,38 @@
  */
 
 // Centralized error messages.
-var ERROR_WRITEONLY = 'this accessor is write-only',
-	ERROR_READONLY = 'this accessor is read-only',
-	ERROR_HIDDEN = 'this accessor is hidden';
-
-// Public $$ object
-var $$ = {
-	// Expose functionality.
-	accessor: accessor,
-	assign: assign,
-	struct: struct,
-
-	// Expose error messages for comparison purposes.
-	errors: {
-		WRITEONLY: ERROR_WRITEONLY,
-		READONLY: ERROR_READONLY,
-		HIDDEN: ERROR_HIDDEN
-	},
-	
-	// Don't change this value here. Only set it from outside.
-	debug: false
-};
+var E_WO = 'this accessor is write-only',
+	E_RO = 'this accessor is read-only',
+	E_H = 'this accessor is hidden',
+	E_REQ = 'this accessor is required',
+	E_AO = 'this flag is only available after applying the .accessor() flag';
 
 // Aid minification with some shortcuts.
 var has = 'hasOwnProperty',
 	pt = 'prototype',
 	fun = 'function';
 
-// Build an accessor member.
-function accessor(value) {
-	return new AccessorProxy(value);
+// Expose functionality.
+assign($$, {
+	assign: assign,
+	struct: struct,
+
+	// Expose error messages for comparison purposes.
+	errors: {
+		WRITEONLY: E_WO,
+		READONLY: E_RO,
+		HIDDEN: E_H,
+		REQUIRED: E_REQ,
+		ACCESSORONLY: E_AO
+	},
+	
+	// Don't change this value here. Only set it from outside.
+	debug: false
+});
+
+// Public $$ function & methods
+function $$(value) {
+	return new TubuxProxy(value);
 }
 
 // Like underscore's _.assign
@@ -63,9 +65,7 @@ function struct(settings) {
 	var params = settings.params;
 	
 	// Stash the constructor method if it's really a function.
-	var construct =
-		typeof (construct = settings.construct) === fun ?
-		construct : null;
+	var construct = functionOrNull(settings.construct);
 	
 	// Define the constructor function that `struct` will return.
 	function TubuxStruct (options) {
@@ -75,29 +75,52 @@ function struct(settings) {
 			// An object for temporarily stashing all the accessors in.
 			accessors = {};
 		
-		// Copy the default params values onto this instance.
-		assign(self, params);
+		// Ensure options is an object.
+		options = (typeof options === 'object' && options) || {};
+
+		// Copy the default params values onto this instance,
+		// and while we're iterating over params, enforce the required ones.
+		eachOwn(params, function (key, value) {
+			// Enforce required options.
+			if (proxyIs(value, 'required') && !options[has](key)) {
+				accessErrorThrower(E_REQ, key)();
+			}
+			// Copy it to this instance.
+			self[key] = value;
+		});
 		
-		// Copy the passed-in values onto the instance, overwriting the defaults.
+		// Copy the options passed to the constructor onto this instance.
 		eachOwn(options, function (key, value) {
-			// If an existing value is an accessor, replace that accessor's
-			// value with the value passed to the constructor.
-			if (self[key] instanceof AccessorProxy) {
+			// If the option's associated default value is an accessor proxy,
+			// replace that accessor's *value* with the option's value.
+			if (proxyIs(self[key], 'accessor')) {
 				self[key].value = value;
 			} else {
-				// For regular values, just use the passed-in value.
+				// For params that are regular values,
+				// replace the default value itself with the option value.
 				self[key] = value;
 			}
 		});
 		
-		// Create real accessor functions from any AccessorProxy values
-		eachOwn(self, function (key, value) {
-			if (value instanceof AccessorProxy) {
-				self[key] = accessors[key] = value.generate(this);
+		// Convert accessor proxies to accessor functions.
+		(function () {
+			var value, key;
+			for (key in self) {
+				value =
+					// Instance members:
+					self[has](key) ? self[key] :
+
+					// Prototype members that aren't already overridden on the instance.
+					TubuxStruct[pt][has](key) ? TubuxStruct[pt][key] :
+					null;
+					
+				if (proxyIs(value, 'accessor')) {
+					self[key] = accessors[key] = value.generate(self, key);
+				}
 			}
-		});
+		}());
 		
-		// Call the constructor
+		// Call the construct function.
 		if (construct) {
 			construct.call(self);
 		}
@@ -120,6 +143,16 @@ function struct(settings) {
 	return TubuxStruct;
 }
 
+// Nullify anything that isn't a function.
+function functionOrNull(fn) {
+	return (typeof fn === fun) ? fn : null;
+}
+
+// Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
+function proxyIs(proxy, flag) {
+	return proxy instanceof TubuxProxy && proxy[flag].v;
+}
+
 // For...in loop.
 function eachOwn(obj, fn) {
 	for (var key in obj) {
@@ -137,47 +170,81 @@ function eachIndex(array, fn, first, count) {
 	}
 }
 
-// A temporary proxy for accessor functions.
-function AccessorProxy(value) {
-	var self = this;
+// A temporary TubuxProxy for accessor functions.
+function TubuxProxy(value) {
+	var self = this,
+		listeners = [];
+	
+	function flagMethod(checkfirst) {
+		function flag() {
+			if (checkfirst) {
+				checkfirst();
+			}
+			flag.v = true;
+			return self;
+		}
+		return flag;
+	}
+	
+	function accessorsOnly(flag) {
+		return function () {
+			if (!self.accessor.v) {
+				accessErrorThrower(E_AO, flag)();
+			}
+		};
+	}
+	
 	assign(self, {
 		value: value,
-		s: [],
-		f: undefined,
-		r: true,
-		w: true,
-		readonly: function () {
-			self.w = false;
+		
+		// Used in TubuxStruct
+		accessor: flagMethod(),
+		required: flagMethod(),
+		
+		// Used for accessor operations
+		readonly: flagMethod(accessorsOnly('readonly')),
+		writeonly: flagMethod(accessorsOnly('writeonly')),
+		hidden: flagMethod(accessorsOnly('hidden')),
+		
+		filter: function (filter) {
+			accessorsOnly('filter')();
+			self.filter.v = filter;
 			return self;
 		},
-		writeonly: function () {
-			self.r = false;
+		listen: function (listener) {
+			accessorsOnly('listen')();
+			listeners.push(functionOrNull(listener));
 			return self;
 		},
-		hidden: function () {
-			self.w = false;
-			self.r = false;
-			return self;
-		},
-		filter: function (fn) {
-			self.f = fn;
-			return self;
-		},
-		listen: function (s) {
-			self.s.push(s);
-			return self;
+		listeners: function () {
+			return listeners;
 		}
 	});
 }
 
 // Generate an accessor function that gets or sets a value depending on whether
 // the function receives an argument.
-AccessorProxy[pt].generate = function (obj) {
-	var value,
-		filterfn = typeof this.f === fun ? this.f : null,
-		listeners = this.s,
-		readable = this.r,
-		writable = this.w;
+TubuxProxy[pt].generate = function (obj, key) {
+	var self = this,
+		value, // declare but don't set yet
+		
+		// flags
+		readonly = self.readonly.v,
+		writeonly = self.writeonly.v,
+		hidden = self.hidden.v,
+		
+		// derived flags
+		readable = !writeonly && !hidden,
+		writable = !readonly && !hidden,
+		
+		// callbacks
+		filter = functionOrNull(self.filter.v),
+		listeners = self.listeners(),
+		
+		// functions for throwing errors
+		throw_hidden = accessErrorThrower(E_H, key),
+		throw_readonly = accessErrorThrower(E_RO, key),
+		throw_writeonly = accessErrorThrower(E_WO, key);
 	
 	// Define the public accessor conditionally, so the conditions don't
 	// need to be evalutated at the time of access.
@@ -215,8 +282,8 @@ AccessorProxy[pt].generate = function (obj) {
 	// Set a new possibly-filtered value and update any listeners.
 	function set(newValue) {
 		var oldValue = value;
-		value = filterfn ?
-			filterfn(newValue) :
+		value = filter ?
+			filter(newValue) :
 			newValue;
 			
 		// Only publish to listeners if the value has actually changed.
@@ -236,7 +303,6 @@ AccessorProxy[pt].generate = function (obj) {
 		return value;
 	}
 	
-	
 	// Functions to assign as methods of both accessor functions:
 	var methods = {
 		// Get the internal accessor, for inside the constructor's closure.
@@ -249,7 +315,9 @@ AccessorProxy[pt].generate = function (obj) {
 		// Inform all the listeners of this accessor's current value.
 		publish: function () {
 			eachIndex(listeners, function (listener) {
-				listener.call(obj, value);
+				if (listener) {
+					listener.call(obj, value);
+				}
 			});
 			return this;
 		},
@@ -257,7 +325,7 @@ AccessorProxy[pt].generate = function (obj) {
 		// Set a function for transforming any values set to this accessor.
 		filter: function (fn) {
 			// Set the new filter function.
-			filterfn = typeof fn === fun ? fn : null;
+			filter = functionOrNull(fn);
 		
 			// Re-set the value with the new filter.
 			privateAccess(value);
@@ -314,16 +382,15 @@ AccessorProxy[pt].generate = function (obj) {
 	return publicAccess; 
 };
 
-function throw_readonly() {
-	throw ERROR_READONLY;
-}
-
-function throw_writeonly() {
-	throw ERROR_WRITEONLY;
-}
-
-function throw_hidden() {
-	throw ERROR_HIDDEN;
+// Produce a function that throws an error with the supplied message and
+// property name.
+function accessErrorThrower(message, key) {
+	return function () {
+		throw {
+			message: message,
+			key: key
+		};
+	};
 }
 
 // Define a function for internal debugging that can be turned on and off again
