@@ -135,17 +135,6 @@ require('./test-tubux.js')(function ($$) {
 			assert(p.name() === 'John');
 		});
 
-		it('prototype accessors', function () {
-			var Person = $$.struct({
-				proto: {
-					name: $$('John').accessor()
-				},
-				construct: function () {
-					this.name_inner = this.name.ready();
-				}
-			});
-		});
-		
 		it('read-write', function () {
 			var Person = $$.struct({
 				params: {
