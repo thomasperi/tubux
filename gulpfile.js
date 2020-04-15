@@ -6,7 +6,15 @@ const rename = require('gulp-regex-rename')
 const umd = require('gulp-umd');
 const pullup = require('@thomasperi/umd-pullup');
 const jshint = require('gulp-jshint');
+
+// Yes, use both uglify and minify (terser). Uglify obeys the collapse_vars
+// option, and terser mistakenly bases its var collapsing decisions on the
+// length of the original variable names instead of the mangled ones.
+// So this script uses uglify to mangle, and then minify to optimize the rest,
+// once the variable names are short enough not to mess up collapse_vars.
+const uglify = require('gulp-uglify');
 const minify = require('gulp-minify');
+
 const mocha = require('gulp-mocha');
 const raiseComments = require('@thomasperi/raise-comments').gulp;
 
@@ -76,13 +84,25 @@ task('min', true, function () {
 	return (gulp
 		.src(files.debug)
 		.pipe(rename(/\.debug\.js$/, '.min.js'))
+		
+		// See comments at the top regarding why this uses both uglify and terser.
+		.pipe(uglify({
+			compress: {
+				collapse_vars: false
+			},
+			output: {
+				comments: '/^!/'
+			}
+		}))
 		.pipe(minify({
 			'preserveComments': 'some',
 			'noSource': true,
+			collapse_vars: false,
 			ext:{
 				min:'.js'
 			},
 		}))
+		
 		.pipe(gulp.dest(dir.dist))
 	);
 });
