@@ -145,7 +145,7 @@ require('./test-tubux.js')(function ($$) {
 					name: $$('John').accessor()
 				},
 				construct: function () {
-					this.name_inner = this.name.priv();
+					this.name_inner = this.name.secret();
 				}
 			});
 			var p = new Person();
@@ -166,7 +166,7 @@ require('./test-tubux.js')(function ($$) {
 						.readonly()
 				},
 				construct: function () {
-					this.name_inner = this.name.priv();
+					this.name_inner = this.name.secret();
 				}
 			});
 			
@@ -184,11 +184,11 @@ require('./test-tubux.js')(function ($$) {
 			}
 			assert.equal(p.name(), 'John')
 
-			// Private setter should succeed
+			// secretate setter should succeed
 			p.name_inner('Jane');
 			assert.equal(p.name(), 'Jane')
 
-			// Private getter should succeed
+			// secretate getter should succeed
 			assert.equal(p.name_inner(), 'Jane')
 		});
 
@@ -200,7 +200,7 @@ require('./test-tubux.js')(function ($$) {
 						.writeonly()
 				},
 				construct: function () {
-					this.name_inner = this.name.priv();
+					this.name_inner = this.name.secret();
 				}
 			});
 			
@@ -214,14 +214,14 @@ require('./test-tubux.js')(function ($$) {
 				assert.equal(e.key, 'name');
 			}
 			
-			// Private getter should succeed
+			// secretate getter should succeed
 			assert.equal(p.name_inner(), 'John');
 			
 			// Public setter should succeed
 			p.name('Jake');
 			assert.equal(p.name_inner(), 'Jake');
 			
-			// Private setter should succeed
+			// secretate setter should succeed
 			p.name_inner('Jane');
 			assert.equal(p.name_inner(), 'Jane');
 			
@@ -235,7 +235,7 @@ require('./test-tubux.js')(function ($$) {
 						.hidden()
 				},
 				construct: function () {
-					this.name_inner = this.name.priv();
+					this.name_inner = this.name.secret();
 				}
 			});
 			
@@ -259,10 +259,10 @@ require('./test-tubux.js')(function ($$) {
 				assert.equal(e.key, 'name');
 			}
 
-			// Private getter should succeed
+			// secretate getter should succeed
 			assert.equal(p.name_inner(), 'John');
 
-			// Private setter should succeed
+			// secretate setter should succeed
 			p.name_inner('Jane');
 			assert.equal(p.name_inner(), 'Jane');
 		});

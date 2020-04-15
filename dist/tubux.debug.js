@@ -12,8 +12,10 @@ var E_WRITEONLY = 'this accessor is write-only',
 	E_HIDDEN = 'this accessor is hidden',
 	E_REQUIRED = 'this accessor is required',
 	E_ACCESSORONLY = 'this flag is only available after applying the .accessor() flag',
-	E_PROTOPROXY = 'cannot assign $$(...) values to proto',
-	E_STATICPROXY = 'cannot assign $$(...) values to statics';
+	
+	// to-do: test E_PROTOPROXY
+	
+	E_PROTOPROXY = 'assigning $$(...) values to the prototype is not allowed';
 
 // Aid minification with some shortcuts.
 var has = 'hasOwnProperty',
@@ -24,6 +26,7 @@ var has = 'hasOwnProperty',
 assign($$, {
 	assign: assign,
 	struct: struct,
+	secret: secret,
 
 	// Expose error messages for comparison purposes.
 	errors: {
@@ -32,8 +35,7 @@ assign($$, {
 		HIDDEN: E_HIDDEN,
 		REQUIRED: E_REQUIRED,
 		ACCESSORONLY: E_ACCESSORONLY,
-		PROTOPROXY: E_PROTOPROXY,
-		STATICPROXY: E_STATICPROXY
+		PROTOPROXY: E_PROTOPROXY
 	},
 	
 	// Don't change this value here. Only set it from outside.
@@ -53,6 +55,17 @@ function assign(target) {
 		});
 	}, 1);
 	return target;
+}
+
+// Make the entire params object secret.
+function secret(params) {
+	return eachOwn(params, function (key, value) {
+		// Convert all the flat, non-proxy values to proxies.
+		if (!(value instanceof TubuxProxy)) {
+			value = params[key] = $$(value);
+		}
+		value.secret();
+	});
 }
 
 // A class-like way of defining a constructor.
@@ -77,87 +90,134 @@ function struct(settings) {
 			self = this,
 			
 			// An object for temporarily stashing all the accessors in.
-			accessors = {};
+			accessors = {},
+			
+			// The secret parameters to be passed to the construct function.
+			secrets = {};
 		
 		// Ensure options is an object.
 		options = (typeof options === 'object' && options) || {};
 		
-		// Copy the default params values onto this instance.
+		// Copy the default params values
+		// onto this instance or the secrets object.
 		eachOwn(params, function (key, value) {
 			// Enforce required options.
 			if (proxyFlag(value, 'required') && !options[has](key)) {
 				accessErrorThrower(E_REQUIRED, key)();
 			}
-			// Copy it to this instance.
-			self[key] = value;
-		});
-		
-		// Copy the options passed to the constructor onto this instance.
-		eachOwn(options, function (key, value) {
-			// If the option's associated default value is a TubuxProxy,
-			// replace that TubuxProxy's *value* with the option's value.
-			if (self[key] instanceof TubuxProxy) {
-				self[key].value = value;
+			// If it's secret, add it to the secrets.
+			if (proxyFlag(value, 'secret')) {
+				secrets[key] = value;
 			} else {
-				// For params that are regular values,
-				// replace the default value itself with the option value.
+				// If not secret, copy it to this instance.
 				self[key] = value;
 			}
 		});
 		
-		// Resolve each member of this instance that's a TubuxProxy,
-		// filtering if there's a filter, and
-		// converting it either into an accessor function or a flat value.
-		eachOwn(self, function (key, value) {
-			// Apply filter if it exists.
-			var filter = proxyFlag(value, 'filter');
-			if (filter) {
-				value.value = filter(value.value);
+		// Copy the options passed to the constructor onto
+		// either this instance or the secrets object.
+		eachOwn(options, function (key, value) {
+			if (!transplant(self, key, value)) {
+				transplant(secrets, key, value);
 			}
-			// If the value is an accessor, generate the accessor function.
-			if (proxyFlag(value, 'accessor')) {
-				self[key] = accessors[key] = value.generate(self, key);
-			
-			// If the value isn't an accessor but is a TubuxProxy,
-			// set the property to the proxy's value.
-			} else if (value instanceof TubuxProxy) {
-				self[key] = value.value;
+		});
+		
+		// Resolve each member of this instance and each secret member.
+		resolve(self, accessors);
+		resolve(secrets, accessors);
+		
+		// Automatically use the `privateAccess` versions
+		// of all the accessors that were flagged `.secret()`.
+		eachOwn(accessors, function (key, value) {
+			if (secrets[has](key)) {
+				secrets[key] = value.secret();
 			}
 		});
 		
 		// Call the construct function.
 		if (construct) {
-			construct.call(self);
+			construct.call(self, secrets);
 		}
 		
-		// Delete any yet-undeleted `priv` methods from the accessor methods.
-		eachOwn(accessors, function (key, value) {
-			if (self[key] === value) {
-				delete self[key].priv;
-			}
-		});
+		// After construct is done, no more accessors should have the `secret` method.
+		desecret(accessors);
 	}
 	
-	// Prevent proxies from being assigned to proto or statics.
+	// Prevent accessors from being assigned to the prototype, because there's
+	// no reason to have them there, and their use would be confusing.
 	eachOwn(settings.proto, function (key, value) {
 		if (value instanceof TubuxProxy) {
 			accessErrorThrower(E_PROTOPROXY, key)();
 		}
 	});
-	eachOwn(settings.statics, function (key, value) {
-		if (value instanceof TubuxProxy) {
-			accessErrorThrower(E_STATICPROXY, key)();
-		}
-	});
-
+	
 	// Assign the prototype members to the constructor's prototype.
 	assign(TubuxStruct[pt], settings.proto);
 
 	// Assign the static members to the constructor.
 	assign(TubuxStruct, settings.statics);
+	
+	// Resolve any static members that are proxies,
+	// and remove the `secret` method from any members that are accessors.
+	desecret(resolve(TubuxStruct, {}));
+	
+	// to-do: test proxies on statics
+	
 
 	// Return this struct's constructor function.
 	return TubuxStruct;
+}
+
+// Remove the `secret` methods from a bunch of accessor functions.
+function desecret(accessors) {
+	eachOwn(accessors, function (key, value) {
+		delete value.secret;
+	});
+}
+
+// Copy an option passed to the constructor onto `obj` (which is either the
+// instance or the secrets object) but only if there's already a property by
+// that name, indicating that that's the object it belongs on.
+function transplant(obj, key, value) {
+	if (obj[has](key)) {
+		// If the option's associated default value is a TubuxProxy,
+		// replace that TubuxProxy's *value* with the option's value.
+		if (obj[key] instanceof TubuxProxy) {
+			obj[key].value = value;
+		} else {
+			// For params that are regular values,
+			// replace the default value itself with the option value.
+			obj[key] = value;
+		}
+		return true;
+	}
+}
+
+// Resolve TubuxProxy objects into their final forms, by applying the filter
+// on each proxy that has one, and then converting the proxy either into an
+// accessor function or a flat value.
+function resolve(obj, accessors) {
+	eachOwn(obj, function (key, value) {
+		// Apply filter if it exists.
+		var filter = proxyFlag(value, 'filter');
+		if (filter) {
+			value.value = filter(value.value);
+		}
+		// If the value is an accessor, generate the accessor function.
+		if (proxyFlag(value, 'accessor')) {
+		
+			// to-do: think about whether to really pass obj when obj === TubuxStruct
+			// which is what happens when resolving proxies assigned to statics.
+		
+			obj[key] = accessors[key] = value.generate(obj, key);
+		
+		// If the value isn't an accessor but is a TubuxProxy,
+		// set the property to the proxy's value.
+		} else if (value instanceof TubuxProxy) {
+			obj[key] = value.value;
+		}
+	});
+	return accessors;
 }
 
 // Nullify anything that isn't a function.
@@ -177,6 +237,7 @@ function eachOwn(obj, fn) {
 			fn(key, obj[key]);
 		}
 	}
+	return obj;
 }
 
 // For loop.
@@ -185,6 +246,7 @@ function eachIndex(array, fn, first, count) {
 	for (i = first || 0; i < len; i++) {
 		fn(array[i], i);
 	}
+	return array;
 }
 
 // A temporary TubuxProxy for accessor functions.
@@ -217,6 +279,9 @@ function TubuxProxy(value) {
 		// Used in TubuxStruct
 		accessor: flagMethod(),
 		required: flagMethod(),
+		secret: flagMethod(),
+		
+		// to-do: test secret and remove 'hidden' if secret works out.
 		
 		// Used for accessor operations
 		readonly: flagMethod(accessorsOnly('readonly')),
@@ -329,7 +394,7 @@ TubuxProxy[pt].generate = function (obj, key) {
 		// Get the internal accessor, for inside the constructor's closure.
 		// This method gets removed automatically after the `construct` function
 		// is finished.
-		priv: function () {
+		secret: function () {
 			return privateAccess;
 		},
 		

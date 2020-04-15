@@ -38,7 +38,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.priv()
+						name_inner: this.name.secret()
 					});
 				}
 			});
@@ -65,7 +65,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.priv()
+						name_inner: this.name.secret()
 					});
 				}
 			});
@@ -92,7 +92,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.priv()
+						name_inner: this.name.secret()
 					});
 				}
 			});
@@ -138,7 +138,7 @@ require('./test-tubux.js')(function ($$) {
 						.readonly()
 				},
 				construct: function () {
-					var name = this.name.priv();
+					var name = this.name.secret();
 					
 					name.listen(function (value) {
 						external = value;
@@ -168,7 +168,7 @@ require('./test-tubux.js')(function ($$) {
 						.writeonly()
 				},
 				construct: function () {
-					var name = this.name.priv();
+					var name = this.name.secret();
 					
 					name.listen(function (value) {
 						external = value;
@@ -194,7 +194,7 @@ require('./test-tubux.js')(function ($$) {
 						.hidden()
 				},
 				construct: function () {
-					var name = this.name.priv();
+					var name = this.name.secret();
 					
 					name.listen(function (value) {
 						external = value;
@@ -243,7 +243,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.priv()
+						name_inner: this.name.secret()
 					});
 				}
 			});
@@ -295,7 +295,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.priv()
+						name_inner: this.name.secret()
 					});
 				}
 			});
