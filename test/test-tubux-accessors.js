@@ -111,6 +111,41 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 		
+		it('prototype proxy flat', function () {
+			var Person = $$.struct({
+				proto: {
+					name: $$('John')
+				}
+			});
+			
+			var p = new Person();
+			assert(p.hasOwnProperty('name'));
+			assert.equal(p.name, 'John');
+		});
+
+		it('prototype proxy accessor', function () {
+			var Person = $$.struct({
+				proto: {
+					name: $$('John').accessor()
+				}
+			});
+			
+			var p = new Person();
+			assert(p.hasOwnProperty('name'));
+			assert(p.name() === 'John');
+		});
+
+		it('prototype accessors', function () {
+			var Person = $$.struct({
+				proto: {
+					name: $$('John').accessor()
+				},
+				construct: function () {
+					this.name_inner = this.name.ready();
+				}
+			});
+		});
+		
 		it('read-write', function () {
 			var Person = $$.struct({
 				params: {

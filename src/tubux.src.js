@@ -102,23 +102,26 @@ function struct(settings) {
 			}
 		});
 		
-		// Convert accessor proxies to accessor functions.
-		(function () {
-			var value, key;
-			for (key in self) {
-				value =
-					// Instance members:
-					self[has](key) ? self[key] :
-
-					// Prototype members that aren't already overridden on the instance.
-					TubuxStruct[pt][has](key) ? TubuxStruct[pt][key] :
-					null;
-					
-				if (proxyIs(value, 'accessor')) {
+		// Copy each TubuxStruct.prototype member that is a TubuxProxy
+		// onto this TubuxStruct instance (unless the property is already set)
+		// so that it can be resolved in the next step.
+		eachOwn(TubuxStruct[pt], function (key, value) {
+			if (value instanceof TubuxProxy && !self[has](key)) {
+				self[key] = value;
+			}
+		});
+		
+		// Resolve each member of this instance that's a TubuxProxy,
+		// converting it either into an accessor function or a flat value.
+		eachOwn(self, function (key, value) {
+			if (value instanceof TubuxProxy) {
+				if (value.accessor.v) {
 					self[key] = accessors[key] = value.generate(self, key);
+				} else {
+					self[key] = value.value;
 				}
 			}
-		}());
+		});
 		
 		// Call the construct function.
 		if (construct) {
