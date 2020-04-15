@@ -3,7 +3,7 @@ require('./test-tubux.js')(function ($$) {
 
 	describe('Accessors Test', () => {
 		
-		it('required proxy without accessor', function () {
+		it('required proxy without accessor with ignored default', function () {
 			var Person = $$.struct({
 				params: {
 					name: $$('John').required()
@@ -15,7 +15,7 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(p.name, 'John');
 			
 			try {
-				var p = new Person()
+				var p = new Person();
 				assert(false);
 			} catch(e) {
 				assert.equal(e.message, $$.errors.REQUIRED);
@@ -23,10 +23,52 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 
-		it('required proxy with accessor', function () {
+		it('required proxy without accessor without default', function () {
+			var Person = $$.struct({
+				params: {
+					name: $$().required()
+				}
+			});
+			var p = new Person({
+				name: 'John'
+			});
+			assert.equal(p.name, 'John');
+			
+			try {
+				var p = new Person();
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.REQUIRED);
+				assert.equal(e.key, 'name');
+			}
+		});
+
+		it('required proxy with accessor with ignored default', function () {
 			var Person = $$.struct({
 				params: {
 					name: $$('John')
+						.accessor()
+						.required()
+				}
+			});
+			var p = new Person({
+				name: 'John'
+			});
+			assert.equal(p.name(), 'John');
+			
+			try {
+				var p = new Person();
+				assert(false);
+			} catch(e) {
+				assert.equal(e.message, $$.errors.REQUIRED);
+				assert.equal(e.key, 'name');
+			}
+		});
+
+		it('required proxy with accessor without default', function () {
+			var Person = $$.struct({
+				params: {
+					name: $$()
 						.accessor()
 						.required()
 				}
