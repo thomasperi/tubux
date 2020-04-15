@@ -127,20 +127,6 @@ require('./test-tubux.js')(function ($$) {
 			try {
 				var Person = $$.struct({
 					params: {
-						name: $$('John').filter(function (val) {
-							return val;
-						})
-					}
-				});
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.ACCESSORONLY);
-				assert.equal(e.key, 'filter');
-			}
-			
-			try {
-				var Person = $$.struct({
-					params: {
 						name: $$('John').listen(function (val) {
 							return val;
 						})
@@ -151,30 +137,6 @@ require('./test-tubux.js')(function ($$) {
 				assert.equal(e.message, $$.errors.ACCESSORONLY);
 				assert.equal(e.key, 'listen');
 			}
-		});
-		
-		it('prototype proxy flat', function () {
-			var Person = $$.struct({
-				proto: {
-					name: $$('John')
-				}
-			});
-			
-			var p = new Person();
-			assert(p.hasOwnProperty('name'));
-			assert.equal(p.name, 'John');
-		});
-
-		it('prototype proxy accessor', function () {
-			var Person = $$.struct({
-				proto: {
-					name: $$('John').accessor()
-				}
-			});
-			
-			var p = new Person();
-			assert(p.hasOwnProperty('name'));
-			assert(p.name() === 'John');
 		});
 
 		it('read-write', function () {

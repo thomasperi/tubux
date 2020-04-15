@@ -7,11 +7,13 @@
  */
 
 // Centralized error messages.
-var E_WO = 'this accessor is write-only',
-	E_RO = 'this accessor is read-only',
-	E_H = 'this accessor is hidden',
-	E_REQ = 'this accessor is required',
-	E_AO = 'this flag is only available after applying the .accessor() flag';
+var E_WRITEONLY = 'this accessor is write-only',
+	E_READONLY = 'this accessor is read-only',
+	E_HIDDEN = 'this accessor is hidden',
+	E_REQUIRED = 'this accessor is required',
+	E_ACCESSORONLY = 'this flag is only available after applying the .accessor() flag',
+	E_PROTOPROXY = 'cannot assign $$(...) values to proto',
+	E_STATICPROXY = 'cannot assign $$(...) values to statics';
 
 // Aid minification with some shortcuts.
 var has = 'hasOwnProperty',
@@ -25,11 +27,13 @@ assign($$, {
 
 	// Expose error messages for comparison purposes.
 	errors: {
-		WRITEONLY: E_WO,
-		READONLY: E_RO,
-		HIDDEN: E_H,
-		REQUIRED: E_REQ,
-		ACCESSORONLY: E_AO
+		WRITEONLY: E_WRITEONLY,
+		READONLY: E_READONLY,
+		HIDDEN: E_HIDDEN,
+		REQUIRED: E_REQUIRED,
+		ACCESSORONLY: E_ACCESSORONLY,
+		PROTOPROXY: E_PROTOPROXY,
+		STATICPROXY: E_STATICPROXY
 	},
 	
 	// Don't change this value here. Only set it from outside.
@@ -77,13 +81,12 @@ function struct(settings) {
 		
 		// Ensure options is an object.
 		options = (typeof options === 'object' && options) || {};
-
-		// Copy the default params values onto this instance,
-		// and while we're iterating over params, enforce the required ones.
+		
+		// Copy the default params values onto this instance.
 		eachOwn(params, function (key, value) {
 			// Enforce required options.
-			if (proxyIs(value, 'required') && !options[has](key)) {
-				accessErrorThrower(E_REQ, key)();
+			if (proxyFlag(value, 'required') && !options[has](key)) {
+				accessErrorThrower(E_REQUIRED, key)();
 			}
 			// Copy it to this instance.
 			self[key] = value;
@@ -91,9 +94,9 @@ function struct(settings) {
 		
 		// Copy the options passed to the constructor onto this instance.
 		eachOwn(options, function (key, value) {
-			// If the option's associated default value is an accessor proxy,
-			// replace that accessor's *value* with the option's value.
-			if (proxyIs(self[key], 'accessor')) {
+			// If the option's associated default value is a TubuxProxy,
+			// replace that TubuxProxy's *value* with the option's value.
+			if (self[key] instanceof TubuxProxy) {
 				self[key].value = value;
 			} else {
 				// For params that are regular values,
@@ -102,24 +105,23 @@ function struct(settings) {
 			}
 		});
 		
-		// Copy each TubuxStruct.prototype member that is a TubuxProxy
-		// onto this TubuxStruct instance (unless the property is already set)
-		// so that it can be resolved in the next step.
-		eachOwn(TubuxStruct[pt], function (key, value) {
-			if (value instanceof TubuxProxy && !self[has](key)) {
-				self[key] = value;
-			}
-		});
-		
 		// Resolve each member of this instance that's a TubuxProxy,
+		// filtering if there's a filter, and
 		// converting it either into an accessor function or a flat value.
 		eachOwn(self, function (key, value) {
-			if (value instanceof TubuxProxy) {
-				if (value.accessor.v) {
-					self[key] = accessors[key] = value.generate(self, key);
-				} else {
-					self[key] = value.value;
-				}
+			// Apply filter if it exists.
+			var filter = proxyFlag(value, 'filter');
+			if (filter) {
+				value.value = filter(value.value);
+			}
+			// If the value is an accessor, generate the accessor function.
+			if (proxyFlag(value, 'accessor')) {
+				self[key] = accessors[key] = value.generate(self, key);
+			
+			// If the value isn't an accessor but is a TubuxProxy,
+			// set the property to the proxy's value.
+			} else if (value instanceof TubuxProxy) {
+				self[key] = value.value;
 			}
 		});
 		
@@ -135,6 +137,18 @@ function struct(settings) {
 			}
 		});
 	}
+	
+	// Prevent proxies from being assigned to proto or statics.
+	eachOwn(settings.proto, function (key, value) {
+		if (value instanceof TubuxProxy) {
+			accessErrorThrower(E_PROTOPROXY, key)();
+		}
+	});
+	eachOwn(settings.statics, function (key, value) {
+		if (value instanceof TubuxProxy) {
+			accessErrorThrower(E_STATICPROXY, key)();
+		}
+	});
 
 	// Assign the prototype members to the constructor's prototype.
 	assign(TubuxStruct[pt], settings.proto);
@@ -152,7 +166,7 @@ function functionOrNull(fn) {
 }
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
-function proxyIs(proxy, flag) {
+function proxyFlag(proxy, flag) {
 	return proxy instanceof TubuxProxy && proxy[flag].v;
 }
 
@@ -192,7 +206,7 @@ function TubuxProxy(value) {
 	function accessorsOnly(flag) {
 		return function () {
 			if (!self.accessor.v) {
-				accessErrorThrower(E_AO, flag)();
+				accessErrorThrower(E_ACCESSORONLY, flag)();
 			}
 		};
 	}
@@ -209,16 +223,20 @@ function TubuxProxy(value) {
 		writeonly: flagMethod(accessorsOnly('writeonly')),
 		hidden: flagMethod(accessorsOnly('hidden')),
 		
+		// Set the filter
 		filter: function (filter) {
-			accessorsOnly('filter')();
-			self.filter.v = filter;
+			self.filter.v = functionOrNull(filter);
 			return self;
 		},
+		
+		// Register a listener
 		listen: function (listener) {
 			accessorsOnly('listen')();
 			listeners.push(functionOrNull(listener));
 			return self;
 		},
+		
+		// Retrieve the array of listeners.
 		listeners: function () {
 			return listeners;
 		}
@@ -245,9 +263,9 @@ TubuxProxy[pt].generate = function (obj, key) {
 		listeners = self.listeners(),
 		
 		// functions for throwing errors
-		throw_hidden = accessErrorThrower(E_H, key),
-		throw_readonly = accessErrorThrower(E_RO, key),
-		throw_writeonly = accessErrorThrower(E_WO, key);
+		throw_hidden = accessErrorThrower(E_HIDDEN, key),
+		throw_readonly = accessErrorThrower(E_READONLY, key),
+		throw_writeonly = accessErrorThrower(E_WRITEONLY, key);
 	
 	// Define the public accessor conditionally, so the conditions don't
 	// need to be evalutated at the time of access.
