@@ -39,7 +39,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.ready()
+						name_inner: this.name.priv()
 					});
 				}
 			});
@@ -67,7 +67,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.ready()
+						name_inner: this.name.priv()
 					});
 				}
 			});
@@ -95,7 +95,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.ready()
+						name_inner: this.name.priv()
 					});
 				}
 			});
@@ -141,7 +141,7 @@ require('./test-tubux.js')(function ($$) {
 						.readonly()
 				},
 				construct: function () {
-					var name = this.name.ready();
+					var name = this.name.priv();
 					
 					name.filter(function (val) {
 						return typeof val === 'string' ?
@@ -172,7 +172,7 @@ require('./test-tubux.js')(function ($$) {
 						.writeonly()
 				},
 				construct: function () {
-					var name = this.name.ready();
+					var name = this.name.priv();
 					
 					name.filter(function (val) {
 						return typeof val === 'string' ?
@@ -203,7 +203,7 @@ require('./test-tubux.js')(function ($$) {
 						.hidden()
 				},
 				construct: function () {
-					var name = this.name.ready();
+					var name = this.name.priv();
 					
 					name.filter(function (val) {
 						return typeof val === 'string' ?

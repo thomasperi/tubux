@@ -145,7 +145,7 @@ require('./test-tubux.js')(function ($$) {
 					name: $$('John').accessor()
 				},
 				construct: function () {
-					this.name_inner = this.name.ready();
+					this.name_inner = this.name.priv();
 				}
 			});
 			var p = new Person();
@@ -166,7 +166,7 @@ require('./test-tubux.js')(function ($$) {
 						.readonly()
 				},
 				construct: function () {
-					this.name_inner = this.name.ready();
+					this.name_inner = this.name.priv();
 				}
 			});
 			
@@ -200,7 +200,7 @@ require('./test-tubux.js')(function ($$) {
 						.writeonly()
 				},
 				construct: function () {
-					this.name_inner = this.name.ready();
+					this.name_inner = this.name.priv();
 				}
 			});
 			
@@ -235,7 +235,7 @@ require('./test-tubux.js')(function ($$) {
 						.hidden()
 				},
 				construct: function () {
-					this.name_inner = this.name.ready();
+					this.name_inner = this.name.priv();
 				}
 			});
 			

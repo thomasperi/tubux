@@ -130,10 +130,10 @@ function struct(settings) {
 			construct.call(self);
 		}
 		
-		// Delete any yet-undeleted `ready` methods from the accessor methods.
+		// Delete any yet-undeleted `priv` methods from the accessor methods.
 		eachOwn(accessors, function (key, value) {
 			if (self[key] === value) {
-				delete self[key].ready;
+				delete self[key].priv;
 			}
 		});
 	}
@@ -329,7 +329,7 @@ TubuxProxy[pt].generate = function (obj, key) {
 		// Get the internal accessor, for inside the constructor's closure.
 		// This method gets removed automatically after the `construct` function
 		// is finished.
-		ready: function () {
+		priv: function () {
 			return privateAccess;
 		},
 		
