@@ -17,9 +17,7 @@ require('./test-tubux.js')(function ($$) {
 			});
 
 			// Default gets filtered
-// $$.debug = true;
 			var p = new Person();
-// $$.debug = false;
 			assert.equal(p.name(), 'JOHN');
 			
 			// Public setter gets filtered
@@ -80,34 +78,6 @@ require('./test-tubux.js')(function ($$) {
 			
 			// Public setter gets filtered
 			p.name('Jane');
-			assert.equal(p.name_inner(), 'JANE');
-		});
-
-		it('filter hidden direct', function () {
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-						.filter(function (val) {
-							return typeof val === 'string' ?
-								val.toUpperCase() :
-								'' + val;
-						})
-				},
-				construct: function () {
-					$$.assign(this, {
-						name_inner: this.name.secret()
-					});
-				}
-			});
-
-			// Default gets filtered
-			var p = new Person();
-			assert.equal(p.name_inner(), 'JOHN');
-			
-			// Public setter gets filtered
-			p.name_inner('Jane');
 			assert.equal(p.name_inner(), 'JANE');
 		});
 
@@ -197,37 +167,6 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(p.name_inner(), 'JANE');
 		});
 
-		it('filter hidden in constructor', function () {
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-				},
-				construct: function () {
-					var name = this.name.secret();
-					
-					name.filter(function (val) {
-						return typeof val === 'string' ?
-							val.toUpperCase() :
-							'' + val;
-					});
-					
-					$$.assign(this, {
-						name_inner: name
-					});
-				}
-			});
-
-			// Default gets filtered
-			var p = new Person();
-			assert.equal(p.name_inner(), 'JOHN');
-			
-			// Public setter gets filtered
-			p.name_inner('Jane');
-			assert.equal(p.name_inner(), 'JANE');
-		});
-
 		it('filter outside', function () {
 			var Person = $$.struct({
 				params: {
@@ -297,30 +236,6 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 
-		it('filter hidden outside should fail', function () {
-
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-				}
-			});
-
-			var p = new Person();
-			try {
-				p.name.filter(function (val) {
-					return typeof val === 'string' ?
-						val.toUpperCase() :
-						'' + val;
-				});
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.HIDDEN);
-				assert.equal(e.key, 'name');
-			}
-		});
-		
 	});
 
 });

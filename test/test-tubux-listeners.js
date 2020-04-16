@@ -77,34 +77,6 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(external, 'Jane');
 		});
 		
-
-		it('listen hidden direct', function () {
-			var external;
-
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-						.listen(function (value) {
-							external = value;
-						})
-				},
-				construct: function () {
-					$$.assign(this, {
-						name_inner: this.name.secret()
-					});
-				}
-			});
-
-			var p = new Person();
-			assert.equal(external, 'John');
-			
-			p.name_inner('Jane');
-			assert.equal(external, 'Jane');
-		});
-		
-
 		it('listen in constructor', function () {
 			var external;
 
@@ -183,37 +155,6 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(external, 'Jane');
 		});
 
-
-		it('listen hidden in constructor', function () {
-			var external;
-
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-				},
-				construct: function () {
-					var name = this.name.secret();
-					
-					name.listen(function (value) {
-						external = value;
-					}).publish();
-					
-					$$.assign(this, {
-						name_inner: name
-					});
-				}
-			});
-
-			var p = new Person();
-			assert.equal(external, 'John');
-			
-			p.name_inner('Jane');
-			assert.equal(external, 'Jane');
-		});
-
-
 		it('listen outside', function () {
 			var external;
 
@@ -230,7 +171,6 @@ require('./test-tubux.js')(function ($$) {
 			p.name('Earl');
 			assert.equal(external, 'Earl');
 		});
-
 
 		it('listen readonly outside', function () {
 			var external;
@@ -282,39 +222,6 @@ require('./test-tubux.js')(function ($$) {
 			p.name('Earl');
 			assert.notEqual(external, 'Earl');
 		});
-
-
-		it('listen hidden outside should fail', function () {
-			var external;
-
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-				},
-				construct: function () {
-					$$.assign(this, {
-						name_inner: this.name.secret()
-					});
-				}
-			});
-
-			var p = new Person();
-			try {
-				p.name.listen(function (value) {
-					external = value;
-				});
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.HIDDEN);
-				assert.equal(e.key, 'name');
-			}
-
-			p.name_inner('Earl');
-			assert.notEqual(external, 'Earl');
-		});
-
 
 	});
 

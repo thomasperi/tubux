@@ -115,25 +115,11 @@ require('./test-tubux.js')(function ($$) {
 			try {
 				var Person = $$.struct({
 					params: {
-						name: $$('John').hidden()
-					}
-				});
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.ACCESSORONLY);
-				assert.equal(e.key, 'hidden');
-			}
-
-			try {
-$$.debug = true;
-				var Person = $$.struct({
-					params: {
 						name: $$('John').listen(function (val) {
 							return val;
 						})
 					}
 				});
-$$.debug = false;
 				assert(false);
 			} catch(e) {
 				assert.equal(e.message, $$.errors.ACCESSORONLY);
@@ -228,46 +214,6 @@ $$.debug = false;
 			
 		});
 
-		it('hidden', function () {
-			var Person = $$.struct({
-				params: {
-					name: $$('John')
-						.accessor()
-						.hidden()
-				},
-				construct: function () {
-					this.name_inner = this.name.secret();
-				}
-			});
-			
-			// Public setter should fail
-			var p = new Person();
-			try {
-				p.name('Jane');
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.HIDDEN);
-				assert.equal(e.key, 'name');
-			}
-			
-			// Public getter should fail
-			var p = new Person();
-			try {
-				p.name();
-				assert(false);
-			} catch(e) {
-				assert.equal(e.message, $$.errors.HIDDEN);
-				assert.equal(e.key, 'name');
-			}
-
-			// secretate getter should succeed
-			assert.equal(p.name_inner(), 'John');
-
-			// secretate setter should succeed
-			p.name_inner('Jane');
-			assert.equal(p.name_inner(), 'Jane');
-		});
-		
 	});
 
 });

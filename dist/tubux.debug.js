@@ -9,7 +9,6 @@
 // Centralized error messages.
 var E_WRITEONLY = 'this accessor is write-only',
 	E_READONLY = 'this accessor is read-only',
-	E_HIDDEN = 'this accessor is hidden',
 	E_REQUIRED = 'this accessor is required',
 	E_ACCESSORONLY = 'this flag is only available after applying the .accessor() flag',
 	
@@ -21,6 +20,7 @@ var E_WRITEONLY = 'this accessor is write-only',
 var has = 'hasOwnProperty',
 	pt = 'prototype',
 	fun = 'function',
+	nil = nil,
 	undef; // leave undefined 'cause that's what it is.
 
 // A unique object to prevent accidental outside use of internal features.
@@ -36,7 +36,6 @@ assign($$, {
 	errors: {
 		WRITEONLY: E_WRITEONLY,
 		READONLY: E_READONLY,
-		HIDDEN: E_HIDDEN,
 		REQUIRED: E_REQUIRED,
 		ACCESSORONLY: E_ACCESSORONLY,
 		PROTOPROXY: E_PROTOPROXY
@@ -79,7 +78,7 @@ function struct(settings) {
 		params: {},
 		proto: {},
 		statics: {},
-		construct: null
+		construct: nil
 	}, settings);
 	
 	// Stash the parameters.
@@ -151,7 +150,8 @@ function struct(settings) {
 			construct.call(self, secrets);
 		}
 		
-		// After construct is done, no more accessors should have the `secret` method.
+		// After construct is done,
+		// no more accessors should have the `secret` method.
 		desecret(accessors);
 	}
 	
@@ -178,13 +178,6 @@ function struct(settings) {
 
 	// Return this struct's constructor function.
 	return TubuxStruct;
-}
-
-// Remove the `secret` methods from a bunch of accessor functions.
-function desecret(accessors) {
-	eachOwn(accessors, function (key, value) {
-		delete value.secret;
-	});
 }
 
 // Copy an option passed to the constructor onto `obj` (which is either the
@@ -232,9 +225,16 @@ function resolve(obj, accessors) {
 	return accessors;
 }
 
+// Remove the `secret` methods from a bunch of accessor functions.
+function desecret(accessors) {
+	eachOwn(accessors, function (key, value) {
+		delete value.secret;
+	});
+}
+
 // Nullify anything that isn't a function.
 function functionOrNull(fn) {
-	return (typeof fn === fun) ? fn : null;
+	return (typeof fn === fun) ? fn : nil;
 }
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
@@ -324,13 +324,12 @@ function addFlags(proto, flags) {
 }
 
 addFlags(TubuxProxy[pt], {
-	accessor: null,
-	required: null,
-	secret: null,
+	accessor: nil,
+	required: nil,
+	secret: nil,
 	
 	readonly: accessorsOnlySanitizer,
 	writeonly: accessorsOnlySanitizer,
-	hidden: accessorsOnlySanitizer,
 	
 	filter: functionOrNull,
 	
@@ -365,53 +364,45 @@ assign(TubuxProxy[pt], {
 			internals = self.get_internal(token),
 		
 			// flags
-			hidden = internals.hidden,
-		
-			// derived flags
-			readable = !internals.writeonly && !hidden,
-			writable = !internals.readonly && !hidden,
+			writeonly = internals.writeonly,
+			readonly = internals.readonly,
 		
 			// callbacks
 			filter = internals.filter,
 			listen = internals.listen || [],
 		
 			// functions for throwing errors
-			throw_hidden = accessErrorThrower(E_HIDDEN, key),
+// 			throw_hidden = accessErrorThrower(E_HIDDEN, key),
 			throw_readonly = accessErrorThrower(E_READONLY, key),
 			throw_writeonly = accessErrorThrower(E_WRITEONLY, key);
 	
 		// Define the public accessor conditionally, so the conditions don't
 		// need to be evalutated at the time of access.
 		var publicAccess = 
-
-			// If this accessor is both writable and readable, just use the 
-			// private accessor as the public one.
-			writable && readable ? privateAccess :
-		
-			// If this accessor is writable but not readable, set the new value
+			
+			// If this accessor is readonly, return the value,
+			// or throw an exception if trying to set a new value.
+			readonly ? function () {
+				if (arguments.length === 0) {
+					return value;
+				}
+				throw_readonly();
+			} :
+			
+			// If this accessor is writeonly, set the new value
 			// if provided, or throw an exception if trying to read.
-			writable ? function () {
+			writeonly ? function () {
 				if (arguments.length > 0) {
 					set(arguments[0]);
 					return value;
 				}
 				throw_writeonly();
 			} :
-		
-			// If this accessor is readable but not writable, return the value,
-			// or throw an exception if trying to set a new value.
-			readable ? function () {
-				if (arguments.length === 0) {
-					return value;
-				}
-				throw_readonly();
-			} : 
-		
-			// If this accessor is neither readable nor writable, throw an
-			// exception regardless of whether there are any arguments.
-			function () {
-				throw_hidden();
-			};
+			
+			// If this accessor is both writable and readable,
+			// just use the private accessor as the public one.
+			privateAccess;
+
 
 		// Set a new possibly-filtered value and update any listeners.
 		function set(newValue) {
@@ -495,19 +486,15 @@ assign(TubuxProxy[pt], {
 	
 		// Prevent filters being added via the public accessor
 		// if it isn't both readable and writable.
-		if (!writable || !readable) {
-			publicAccess.filter = 
-				readable ? throw_readonly :
-					writable ? throw_writeonly :
-						throw_hidden;
+		if (readonly) {
+			publicAccess.filter = throw_readonly;
 		}
 	
 		// Prevent listeners being added via the public accessor
 		// if it isn't readable.
-		if (!readable) {
-			publicAccess.listen = 
-				writable ? throw_writeonly :
-					throw_hidden;
+		if (writeonly) {
+			publicAccess.filter = throw_writeonly;
+			publicAccess.listen = throw_writeonly;
 		}
 
 		// Set the initial value after everything is set up,
