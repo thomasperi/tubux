@@ -39,7 +39,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.secret()
+						name_inner: this.name.claim()
 					});
 				}
 			});
@@ -67,7 +67,7 @@ require('./test-tubux.js')(function ($$) {
 				},
 				construct: function () {
 					$$.assign(this, {
-						name_inner: this.name.secret()
+						name_inner: this.name.claim()
 					});
 				}
 			});
@@ -113,7 +113,7 @@ require('./test-tubux.js')(function ($$) {
 						.readonly()
 				},
 				construct: function () {
-					var name = this.name.secret();
+					var name = this.name.claim();
 					
 					name.filter(function (val) {
 						return typeof val === 'string' ?
@@ -144,7 +144,7 @@ require('./test-tubux.js')(function ($$) {
 						.writeonly()
 				},
 				construct: function () {
-					var name = this.name.secret();
+					var name = this.name.claim();
 					
 					name.filter(function (val) {
 						return typeof val === 'string' ?
