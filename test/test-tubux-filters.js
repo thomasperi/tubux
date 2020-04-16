@@ -17,7 +17,9 @@ require('./test-tubux.js')(function ($$) {
 			});
 
 			// Default gets filtered
+// $$.debug = true;
 			var p = new Person();
+// $$.debug = false;
 			assert.equal(p.name(), 'JOHN');
 			
 			// Public setter gets filtered

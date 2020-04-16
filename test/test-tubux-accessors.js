@@ -125,6 +125,7 @@ require('./test-tubux.js')(function ($$) {
 			}
 
 			try {
+$$.debug = true;
 				var Person = $$.struct({
 					params: {
 						name: $$('John').listen(function (val) {
@@ -132,6 +133,7 @@ require('./test-tubux.js')(function ($$) {
 						})
 					}
 				});
+$$.debug = false;
 				assert(false);
 			} catch(e) {
 				assert.equal(e.message, $$.errors.ACCESSORONLY);
@@ -172,12 +174,11 @@ require('./test-tubux.js')(function ($$) {
 			
 			// Public getter should succeed
 			var p = new Person();
-			assert.equal(p.name(), 'John')
-			
+			assert.equal(p.name(), 'John');
 			// Public setter should fail
 			try {
 				p.name('Jake');
-				assert(false);
+				assert(false, 'bad success');
 			} catch(e) {
 				assert.equal(e.message, $$.errors.READONLY);
 				assert.equal(e.key, 'name');

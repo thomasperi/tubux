@@ -20,7 +20,11 @@ var E_WRITEONLY = 'this accessor is write-only',
 // Aid minification with some shortcuts.
 var has = 'hasOwnProperty',
 	pt = 'prototype',
-	fun = 'function';
+	fun = 'function',
+	undef; // leave undefined 'cause that's what it is.
+
+// A unique object to prevent accidental outside use of internal features.
+var token = {};
 
 // Expose functionality.
 assign($$, {
@@ -100,25 +104,33 @@ function struct(settings) {
 		
 		// Copy the default params values
 		// onto this instance or the secrets object.
-		eachOwn(params, function (key, value) {
+		eachOwn(params, function (key, val) {
+			
 			// Enforce required options.
-			if (proxyFlag(value, 'required') && !options[has](key)) {
+			if (proxyFlag(val, 'required') && !options[has](key)) {
 				accessErrorThrower(E_REQUIRED, key)();
 			}
+			
+			// If the value is a TubuxProxy, clone it.
+			if (val instanceof TubuxProxy) {
+				val = new TubuxProxy(val);
+			}
+			
 			// If it's secret, add it to the secrets.
-			if (proxyFlag(value, 'secret')) {
-				secrets[key] = value;
+			if (proxyFlag(val, 'secret')) {
+				secrets[key] = val;
+
+			// If not secret, copy it to this instance.
 			} else {
-				// If not secret, copy it to this instance.
-				self[key] = value;
+				self[key] = val;
 			}
 		});
 		
 		// Copy the options passed to the constructor onto
 		// either this instance or the secrets object.
-		eachOwn(options, function (key, value) {
-			if (!transplant(self, key, value)) {
-				transplant(secrets, key, value);
+		eachOwn(options, function (key, val) {
+			if (!transplant(self, key, val)) {
+				transplant(secrets, key, val);
 			}
 		});
 		
@@ -181,12 +193,12 @@ function desecret(accessors) {
 function transplant(obj, key, value) {
 	if (obj[has](key)) {
 		// If the option's associated default value is a TubuxProxy,
-		// replace that TubuxProxy's *value* with the option's value.
+		// replace that TubuxProxy's value with the passed value.
 		if (obj[key] instanceof TubuxProxy) {
 			obj[key].value = value;
 		} else {
 			// For params that are regular values,
-			// replace the default value itself with the option value.
+			// replace the default value itself with the passed value.
 			obj[key] = value;
 		}
 		return true;
@@ -205,7 +217,7 @@ function resolve(obj, accessors) {
 		}
 		// If the value is an accessor, generate the accessor function.
 		if (proxyFlag(value, 'accessor')) {
-		
+
 			// to-do: think about whether to really pass obj when obj === TubuxStruct
 			// which is what happens when resolving proxies assigned to statics.
 		
@@ -227,7 +239,7 @@ function functionOrNull(fn) {
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
-	return proxy instanceof TubuxProxy && proxy[flag].v;
+	return proxy instanceof TubuxProxy && proxy.get_internal(token)[flag];
 }
 
 // For...in loop.
@@ -249,224 +261,263 @@ function eachIndex(array, fn, first, count) {
 	return array;
 }
 
+// Create a method that turns on a flag or reads its value.
+// function createFlagMethod(self, flagName, sanityCheck) {
+// 	var value;
+// 	return function() {
+// 		var val = arguments.length ? arguments[0] : true;
+// 		if (val === token) {
+// 			return value;
+// 		}
+// 		value = sanityCheck ? sanityCheck(val, self, flagName) : true;
+// 		return self;
+// 	};
+// }
+// 
+// function accessorsOnly(val, self, flagName) {
+// 	if (!self.accessor(token)) {
+// 		accessErrorThrower(E_ACCESSORONLY, flagName)();
+// 	}
+// 	return val;
+// }
+
 // A temporary TubuxProxy for accessor functions.
-function TubuxProxy(value) {
-	var self = this,
-		listeners = [];
-	
-	function flagMethod(checkfirst) {
-		function flag() {
-			if (checkfirst) {
-				checkfirst();
-			}
-			flag.v = true;
-			return self;
+function TubuxProxy(val) {
+	var internal = {};
+	if (val instanceof TubuxProxy) {
+		// Copy the `internal` object.
+		assign(internal, val.get_internal(token));
+		val = val.value;
+		
+		// Copy the `listen` array.
+		if (internal.listen) {
+			internal.listen = [].slice.call(internal.listen);
 		}
-		return flag;
 	}
-	
-	function accessorsOnly(flag) {
-		return function () {
-			if (!self.accessor.v) {
-				accessErrorThrower(E_ACCESSORONLY, flag)();
+	assign(this, {
+		value: val,
+		set_internal: function (access, key, val) {
+			if (access === token) {
+				internal[key] = val;
 			}
-		};
-	}
-	
-	assign(self, {
-		value: value,
-		
-		// Used in TubuxStruct
-		accessor: flagMethod(),
-		required: flagMethod(),
-		secret: flagMethod(),
-		
-		// to-do: test secret and remove 'hidden' if secret works out.
-		
-		// Used for accessor operations
-		readonly: flagMethod(accessorsOnly('readonly')),
-		writeonly: flagMethod(accessorsOnly('writeonly')),
-		hidden: flagMethod(accessorsOnly('hidden')),
-		
-		// Set the filter
-		filter: function (filter) {
-			self.filter.v = functionOrNull(filter);
-			return self;
 		},
-		
-		// Register a listener
-		listen: function (listener) {
-			accessorsOnly('listen')();
-			listeners.push(functionOrNull(listener));
-			return self;
-		},
-		
-		// Retrieve the array of listeners.
-		listeners: function () {
-			return listeners;
+		get_internal: function (access) {
+			if (access === token) {
+				return internal;
+			}
 		}
 	});
 }
 
-// Generate an accessor function that gets or sets a value depending on whether
-// the function receives an argument.
-TubuxProxy[pt].generate = function (obj, key) {
-	var self = this,
-		value, // declare but don't set yet
-		
-		// flags
-		readonly = self.readonly.v,
-		writeonly = self.writeonly.v,
-		hidden = self.hidden.v,
-		
-		// derived flags
-		readable = !writeonly && !hidden,
-		writable = !readonly && !hidden,
-		
-		// callbacks
-		filter = functionOrNull(self.filter.v),
-		listeners = self.listeners(),
-		
-		// functions for throwing errors
-		throw_hidden = accessErrorThrower(E_HIDDEN, key),
-		throw_readonly = accessErrorThrower(E_READONLY, key),
-		throw_writeonly = accessErrorThrower(E_WRITEONLY, key);
-	
-	// Define the public accessor conditionally, so the conditions don't
-	// need to be evalutated at the time of access.
-	var publicAccess = 
+function addFlags(proto, flags) {
+	eachOwn(flags, function (name, sanitizer) {
+		proto[name] = function (val) {
+			if (!arguments.length) {
+				val = true;
+			}
+			this.set_internal(token, name, 
+				sanitizer ? sanitizer.call(this, val, name) : val
+			);
+			return this;
+		};
+	});
+}
 
-		// If this accessor is both writable and readable, just use the 
-		// private accessor as the public one.
-		writable && readable ? privateAccess :
+addFlags(TubuxProxy[pt], {
+	accessor: null,
+	required: null,
+	secret: null,
+	
+	readonly: accessorsOnlySanitizer,
+	writeonly: accessorsOnlySanitizer,
+	hidden: accessorsOnlySanitizer,
+	
+	filter: functionOrNull,
+	
+	listen: function (val) {
+		accessorsOnlySanitizer.call(this, val, 'listen');
+		var listen = this.get_internal(token).listen || [];
+		if (
+			(val = functionOrNull(val)) &&
+			listen.indexOf(val) < 0
+		) {
+			listen.push(val);
+		}
+		return listen;
+	}
+});
+
+function accessorsOnlySanitizer(val, flagName) {
+	/*jshint validthis:true */
+	if (!this.get_internal(token).accessor) {
+		accessErrorThrower(E_ACCESSORONLY, flagName)();
+	}
+	return val;
+}
+
+assign(TubuxProxy[pt], {
+	// Generate an accessor function that gets or sets a value
+	// depending on whether the function receives an argument.
+	generate: function (obj, key) {
+		var self = this,
+			value, // declare but don't set yet
+			
+			internals = self.get_internal(token),
 		
-		// If this accessor is writable but not readable, set the new value
-		// if provided, or throw an exception if trying to read.
-		writable ? function () {
+			// flags
+			hidden = internals.hidden,
+		
+			// derived flags
+			readable = !internals.writeonly && !hidden,
+			writable = !internals.readonly && !hidden,
+		
+			// callbacks
+			filter = internals.filter,
+			listen = internals.listen || [],
+		
+			// functions for throwing errors
+			throw_hidden = accessErrorThrower(E_HIDDEN, key),
+			throw_readonly = accessErrorThrower(E_READONLY, key),
+			throw_writeonly = accessErrorThrower(E_WRITEONLY, key);
+	
+		// Define the public accessor conditionally, so the conditions don't
+		// need to be evalutated at the time of access.
+		var publicAccess = 
+
+			// If this accessor is both writable and readable, just use the 
+			// private accessor as the public one.
+			writable && readable ? privateAccess :
+		
+			// If this accessor is writable but not readable, set the new value
+			// if provided, or throw an exception if trying to read.
+			writable ? function () {
+				if (arguments.length > 0) {
+					set(arguments[0]);
+					return value;
+				}
+				throw_writeonly();
+			} :
+		
+			// If this accessor is readable but not writable, return the value,
+			// or throw an exception if trying to set a new value.
+			readable ? function () {
+				if (arguments.length === 0) {
+					return value;
+				}
+				throw_readonly();
+			} : 
+		
+			// If this accessor is neither readable nor writable, throw an
+			// exception regardless of whether there are any arguments.
+			function () {
+				throw_hidden();
+			};
+
+		// Set a new possibly-filtered value and update any listeners.
+		function set(newValue) {
+			var oldValue = value;
+			value = filter ?
+				filter(newValue) :
+				newValue;
+			
+			// Only publish to listeners if the value has actually changed.
+			if (oldValue !== value) {
+				methods.publish();
+			}
+		}
+	
+		// An unfettered accessor function for private use within the struct.
+		function privateAccess() {
+			// If there's an argument, act as a setter and assign it as this
+			// accessor's value and inform all the listeners.
 			if (arguments.length > 0) {
 				set(arguments[0]);
-				return value;
 			}
-			throw_writeonly();
-		} :
-		
-		// If this accessor is readable but not writable, return the value,
-		// or throw an exception if trying to set a new value.
-		readable ? function () {
-			if (arguments.length === 0) {
-				return value;
-			}
-			throw_readonly();
-		} : 
-		
-		// If this accessor is neither readable nor writable, throw an
-		// exception regardless of whether there are any arguments.
-		function () {
-			throw_hidden();
-		};
-
-	// Set a new possibly-filtered value and update any listeners.
-	function set(newValue) {
-		var oldValue = value;
-		value = filter ?
-			filter(newValue) :
-			newValue;
-			
-		// Only publish to listeners if the value has actually changed.
-		if (oldValue !== value) {
-			methods.publish();
+			// Return the value back even when setting.
+			return value;
 		}
-	}
 	
-	// An unfettered accessor function for private use within the struct.
-	function privateAccess() {
-		// If there's an argument, act as a setter and assign it as this
-		// accessor's value and inform all the listeners.
-		if (arguments.length > 0) {
-			set(arguments[0]);
-		}
-		// Return the value back even when setting.
-		return value;
-	}
-	
-	// Functions to assign as methods of both accessor functions:
-	var methods = {
-		// Get the internal accessor, for inside the constructor's closure.
-		// This method gets removed automatically after the `construct` function
-		// is finished.
-		secret: function () {
-			return privateAccess;
-		},
+		// Functions to assign as methods of both accessor functions:
+		var methods = {
+			// Get the internal accessor, for inside the constructor's closure.
+			// This method gets removed automatically after the `construct` function
+			// is finished.
+			secret: function () {
+				return privateAccess;
+			},
 		
-		// Inform all the listeners of this accessor's current value.
-		publish: function () {
-			eachIndex(listeners, function (listener) {
-				if (listener) {
-					listener.call(obj, value);
+			// Inform all the listeners of this accessor's current value.
+			publish: function () {
+				if (listen) {
+					eachIndex(listen, function (listener) {
+						if (listener) {
+							listener.call(obj, value);
+						}
+					});
 				}
-			});
-			return this;
-		},
+				return this;
+			},
 		
-		// Set a function for transforming any values set to this accessor.
-		filter: function (fn) {
-			// Set the new filter function.
-			filter = functionOrNull(fn);
+			// Set a function for transforming any values set to this accessor.
+			filter: function (fn) {
+				// Set the new filter function.
+				filter = functionOrNull(fn);
 		
-			// Re-set the value with the new filter.
-			privateAccess(value);
+				// Re-set the value with the new filter.
+				privateAccess(value);
 		
-			// All the methods of accessor functions return either the public or
-			// private accessor function.
-			return this;
-		},
+				// All the methods of accessor functions return either the public or
+				// private accessor function.
+				return this;
+			},
 		
-		// Register a listener with this accessor.
-		listen: function (listener) {
-			if (listeners.indexOf(listener) < 0) {
-				listeners.push(listener);
+			// Register a listener with this accessor.
+			listen: function (listener) {
+				if (listen.indexOf(listener) < 0) {
+					listen.push(listener);
+				}
+				return this;
+			},
+		
+			// Unregister a listener from this accessor.
+			unlisten: function (listener) {
+				var index = listen.indexOf(listener);
+				if (index >= 0) {
+					listen.splice(index, 1);
+				}
+				return this;
 			}
-			return this;
-		},
-		
-		// Unregister a listener from this accessor.
-		unlisten: function (listener) {
-			var index = listeners.indexOf(listener);
-			if (index >= 0) {
-				listeners.splice(index, 1);
-			}
-			return this;
+		};
+	
+		// Assign all the methods to both public and private accessors.
+		assign(publicAccess, methods);
+		assign(privateAccess, methods);
+	
+		// Prevent filters being added via the public accessor
+		// if it isn't both readable and writable.
+		if (!writable || !readable) {
+			publicAccess.filter = 
+				readable ? throw_readonly :
+					writable ? throw_writeonly :
+						throw_hidden;
 		}
-	};
 	
-	// Assign all the methods to both public and private accessors.
-	assign(publicAccess, methods);
-	assign(privateAccess, methods);
-	
-	// Prevent filters being added via the public accessor
-	// if it isn't both readable and writable.
-	if (!writable || !readable) {
-		publicAccess.filter = 
-			readable ? throw_readonly :
+		// Prevent listeners being added via the public accessor
+		// if it isn't readable.
+		if (!readable) {
+			publicAccess.listen = 
 				writable ? throw_writeonly :
 					throw_hidden;
-	}
-	
-	// Prevent listeners being added via the public accessor
-	// if it isn't readable.
-	if (!readable) {
-		publicAccess.listen = 
-			writable ? throw_writeonly :
-				throw_hidden;
-	}
+		}
 
-	// Set the initial value after everything is set up,
-	// so that any default listener and/or filters hear about it.
-	privateAccess(this.value);
+		// Set the initial value after everything is set up,
+		// so that any default listener and/or filters hear about it.
+		privateAccess(this.value);
 	
-	// The external accessor gets assigned to the object by default.
-	return publicAccess; 
-};
+		// The external accessor gets assigned to the object by default.
+		return publicAccess; 
+	}
+});
 
 // Produce a function that throws an error with the supplied message and
 // property name.
@@ -494,4 +545,4 @@ function debug(msg) {
 // until it gets set to true by something outside the module.)
 // Setting /*jshint unused: false */ didn't work for some reason,
 // possibly because I've set it true in the gulpfile.
-debug();
+debug(undef);
