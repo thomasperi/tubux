@@ -2,6 +2,7 @@ const gulp = require('gulp');
 const runSequence = require('gulp4-run-sequence');
 const watch = require('gulp-watch');
 const rename = require('gulp-regex-rename')
+const fs = require("fs");
 
 const umd = require('gulp-umd');
 const pullup = require('@thomasperi/umd-pullup');
@@ -23,12 +24,14 @@ var files = {
 	src: 'src/*.src.js',
 	test: 'test/*.js',
 	debug: 'dist/*.debug.js',
-	min: 'dist/*.min.js'
+	min: 'dist/*.min.js',
+	examples: 'examples/*.js'
 };
 
 // Directories for writing files
 var dir = {
-	dist: 'dist'
+	dist: 'dist',
+	examples: 'examples'
 };
 
 // Make it easier to run tasks from inside other tasks.
@@ -132,14 +135,69 @@ task('build', false, function (callback) {
 	runSequence(...buildQueue, callback);
 });
 
-// On 'src' changes, re-run the 'build' task.
-// On 'test' changes, re-run just the 'test' task.
+// Lint the example scripts.
+task('examples-lint', false, function () {
+	return (gulp
+		.src(files.examples)
+		.pipe(jshint({
+			'undef': true,
+			'unused': true,
+			'globals': {
+				'$$': true,
+				'console': true,
+				'require': true
+			}
+		}))
+		.pipe(jshint.reporter('default'))
+	);
+});
+
+// Generate the javascript code for setting the list array in _index.html
+task('examples-catalog', false, function (callback) {
+	// Read the .js files from the examples directory.
+	var jsfiles = fs.readdirSync(dir.examples)
+		.filter(name => name.slice(-3) === '.js')
+		.sort();
+	
+	// Read the contents of all the files
+	var js = {};
+	for (var i = 0; i < jsfiles.length; i++) {
+		var name = jsfiles[i],
+			content = fs.readFileSync(dir.examples + '/' + name, 'utf-8');
+			
+		js[name] = content.replace("var $$ = require('../dist/tubux.min.js');", '').trim();
+	}
+	
+	// Write the file to _list.jsonp
+	var jsonp = 
+		'// This file is auto-generated. Do not edit.\n' +
+		'var examples=' + JSON.stringify(js) + ';';
+	fs.writeFileSync(dir.examples + '/_list.jsonp', jsonp);
+	
+	callback();
+});
+
+task('examples', false, function (callback) {
+	runSequence(
+		'examples-lint',
+		'examples-catalog',
+		callback
+	);
+});
+
+// Run tasks when changes are detected on certain files.
 task('watch', false, function () {
+	// On 'src' changes, run the 'build' task.
 	watch(files.src, tasks.build);
+
+	// On 'test' changes, run just the 'test' task.
 	watch(files.test, function (callback) {
 		// Do it through runSequence so it runs as a task, for nice output.
 		runSequence('test', callback);
 	});
+	
+	// On 'examples' changes, run the examples task.
+	watch(files.examples, tasks.examples);
 });
 
 // Make `gulp` run the build task.
