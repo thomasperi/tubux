@@ -164,7 +164,8 @@ task('examples-catalog', false, function (callback) {
 	for (var i = 0; i < jsfiles.length; i++) {
 		var name = jsfiles[i],
 			content = fs.readFileSync(dir.examples + '/' + name, 'utf-8');
-			
+		
+		// Remove the node require line
 		js[name] = content.replace("var $$ = require('../dist/tubux.min.js');", '').trim();
 	}
 	
