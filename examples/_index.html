@@ -56,7 +56,8 @@ real console for the output) or run it in nodejs.
 			
 			// If a file is selected...
 			if (file) {
-				document.getElementById('src').innerHTML = encode(examples[unescaped]);
+				document.getElementById('src').innerHTML =
+					 encode(examples[unescaped]);
 
 				var script = document.createElement('script');
 				script.src = file + '?t=' + Date.now();
@@ -69,7 +70,10 @@ real console for the output) or run it in nodejs.
 			// Populate the menu
 			var select = get('list');
 			for (var key in examples) {
-				select.innerHTML += '<option' + ((key === unescaped) ? ' disabled' : '') + '>' + key + '</option>';
+				select.innerHTML +=
+					'<option' + ((key === unescaped) ? ' disabled' : '') + '>'
+					+ key + 
+					'</option>';
 			}
 			select.onchange = function() {
 				var value = this.value;

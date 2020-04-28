@@ -262,6 +262,7 @@ function TubuxProxy(val) {
 		}
 	}
 	assign(this, {
+		// underscore properties are terser-manglable.
 		_value: val,
 		_internals: function (access) {
 			if (access === token) {

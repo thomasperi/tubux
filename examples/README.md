@@ -10,4 +10,4 @@ node counter.js
 
 ## Web Browser
 
-Open `_index.html` as a local file in a browser and choose which example to run from that page.
+Open `_index.html` locally in a browser and choose which example to run from that page.
