@@ -210,14 +210,8 @@ function transplant(obj, key, value) {
 // function or a flat value.
 function resolve(obj, accessors, thisvar) {
 	eachOwn(obj, function (key, value) {
-		// Apply filter if it exists.
-		var filters = proxyFlag(value, 'filter');
-		if (filters) {
-			eachIndex(filters, function (filter) {
-				value.value = filter(value.value);
-			});
-		}
 		// If the value is an accessor, generate the accessor function.
+		// This applies filters and listeners too.
 		if (proxyFlag(value, 'accessor')) {
 			obj[key] = accessors[key] = value.generate(thisvar, key);
 		
@@ -379,19 +373,21 @@ TubuxProxy[pt].generate = function (obj, key) {
 			eachIndex(filter, function (fn) {
 				if (fn) {
 					newValue = fn.call(obj, newValue);
-					
+				
 					// to-do: test `this` in filters
 				}
 			});
 		}
-
+		really_set(newValue);
+	}
+	
+	function really_set(newValue) {
 		// Only publish to listeners if the value has actually changed.
 		var oldValue = value;
 		value = newValue;
 		if (oldValue !== value) {
 			methods.publish();
 		}
-		
 	}
 
 	// An unfettered accessor function for private use within the struct.
@@ -434,10 +430,10 @@ TubuxProxy[pt].generate = function (obj, key) {
 		filter: function (fn) {
 			if (filter.indexOf(fn) < 0) {
 				filter.push(fn);
+
+				// Re-set the value using only the new filter.
+				really_set(fn.call(obj, value));
 			}
-	
-			// Re-set the value with the new filter.
-			privateAccess(value);
 	
 			// All the methods of accessor functions return either the public or
 			// private accessor function.

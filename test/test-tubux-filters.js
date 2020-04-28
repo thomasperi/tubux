@@ -236,7 +236,34 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 
-		it('multiple filters', function () {
+		it('multiple filters on proxy', function () {
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe')
+						.accessor()
+						.filter(function (val) {
+							return String(val).replace('o', 'O');
+						})
+						.filter(function (val) {
+							return String(val).replace('n', 'N');
+						})
+						.filter(function (val) {
+							return String(val).replace('J', 'j');
+						})
+				}
+			});
+			
+			var p = new Person();
+
+			assert.equal(p.name(), 'jOhN Doe');
+			
+			p.name('Jane Doe');
+
+			assert.equal(p.name(), 'jaNe DOe');
+		});
+
+		it('multiple filters after instance', function () {
 
 			var Person = $$.struct({
 				params: {
@@ -257,11 +284,78 @@ require('./test-tubux.js')(function ($$) {
 				})
 			);
 			
-			assert.equal(p.name(), 'jOhN DOe');
+			assert.equal(p.name(), 'jOhN Doe');
 			
 			p.name('Jane Doe');
 
 			assert.equal(p.name(), 'jaNe DOe');
+
+		});
+
+		it('multiple filters both places', function () {
+
+			var Person = $$.struct({
+				params: {
+					name: $$('the quick brown fox jumps over the lazy dog')
+						.accessor()
+						.filter(function (val) {
+							return String(val).replace('t', 'T');
+						})
+						.filter(function (val) {
+							return String(val).replace('q', 'Q');
+						})
+						.filter(function (val) {
+							return String(val).replace('b', 'B');
+						})
+				}
+			});
+
+			var p = new Person();
+			(p.name
+				.filter(function (val) {
+					return String(val).replace('f', 'F');
+				})
+				.filter(function (val) {
+					return String(val).replace('j', 'J');
+				})
+				.filter(function (val) {
+					return String(val).replace('o', 'O');
+				})
+			);
+			
+			assert.equal(p.name(), 'The Quick BrOwn Fox Jumps over the lazy dog');
+
+			p.name('the five boxing wizards jump quickly');
+
+			assert.equal(p.name(), 'The Five BOxing wizards Jump Quickly');
+
+		});
+
+		it('this in filters', function () {
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe').accessor(),
+					prefix: 'My name is '
+				}
+			});
+
+			var p = new Person();
+			p.name.filter(function (val) {
+				return this.prefix + val;
+			});
+			
+			assert.equal(p.name(), 'My name is John Doe');
+			
+			p.name.filter(function (val) {
+				return val + ' most certainly';
+			});
+
+			assert.equal(p.name(), 'My name is John Doe most certainly');
+			
+			p.name('Jane Doe');
+
+			assert.equal(p.name(), 'My name is Jane Doe most certainly');
 
 		});
 

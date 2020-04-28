@@ -223,8 +223,38 @@ require('./test-tubux.js')(function ($$) {
 			assert.notEqual(external, 'Earl');
 		});
 
-		it('multiple listeners', function () {
+		it('multiple listeners on proxy', function () {
+	
+			var a, b, c;
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe')
+						.accessor()
+						.listen(function (val) {
+							a = val;
+						})
+						.listen(function (val) {
+							b = val;
+						})
+						.listen(function (val) {
+							c = val;
+						})
+				}
+			});
+
+			var p = new Person();
 		
+			p.name('Jane Doe');
+
+			assert.equal(a, 'Jane Doe');
+			assert.equal(b, 'Jane Doe');
+			assert.equal(c, 'Jane Doe');
+
+		});
+
+		it('multiple listeners after instance', function () {
+	
 			var a, b, c;
 
 			var Person = $$.struct({
@@ -245,12 +275,56 @@ require('./test-tubux.js')(function ($$) {
 					c = val;
 				})
 			);
-			
+		
 			p.name('Jane Doe');
 
 			assert.equal(a, 'Jane Doe');
 			assert.equal(b, 'Jane Doe');
 			assert.equal(c, 'Jane Doe');
+
+		});
+
+		it('multiple listeners both places', function () {
+	
+			var a, b, c, d, e, f;
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe')
+						.accessor()
+						.listen(function (val) {
+							a = val;
+						})
+						.listen(function (val) {
+							b = val;
+						})
+						.listen(function (val) {
+							c = val;
+						})
+				}
+			});
+
+			var p = new Person();
+			(p.name
+				.listen(function (val) {
+					d = val;
+				})
+				.listen(function (val) {
+					e = val;
+				})
+				.listen(function (val) {
+					f = val;
+				})
+			);
+		
+			p.name('Jane Doe');
+
+			assert.equal(a, 'Jane Doe');
+			assert.equal(b, 'Jane Doe');
+			assert.equal(c, 'Jane Doe');
+			assert.equal(d, 'Jane Doe');
+			assert.equal(e, 'Jane Doe');
+			assert.equal(f, 'Jane Doe');
 
 		});
 
@@ -286,9 +360,9 @@ require('./test-tubux.js')(function ($$) {
 				})
 			);
 			
-			assert.equal(a, 'jOhN DOe');
-			assert.equal(b, 'jOhN DOe');
-			assert.equal(c, 'jOhN DOe');
+			assert.equal(a, 'jOhN Doe');
+			assert.equal(b, 'jOhN Doe');
+			assert.equal(c, 'jOhN Doe');
 
 			p.name('Jane Doe');
 
