@@ -19,6 +19,7 @@ var E_WRITEONLY = 'this accessor is write-only',
 var has = 'hasOwnProperty',
 	pt = 'prototype',
 	fun = 'function',
+	idx = 'indexOf',
 	nil = null,
 	undef; // leave undefined 'cause that's what it is.
 
@@ -28,6 +29,7 @@ var token = {};
 // Expose functionality.
 assign($$, {
 	assign: assign,
+	detach: detach,
 	secret: secret,
 	struct: struct,
 
@@ -61,6 +63,13 @@ function assign(target) {
 		});
 	}, 1);
 	return target;
+}
+
+// Remove a property and return its value
+function detach(self, prop) {
+	var val = self[prop];
+	delete self[prop];
+	return val;
 }
 
 // Make the entire params object secret.
@@ -195,7 +204,7 @@ function transplant(obj, key, value) {
 		// If the option's associated default value is a TubuxProxy,
 		// replace that TubuxProxy's value with the passed value.
 		if (obj[key] instanceof TubuxProxy) {
-			obj[key].value = value;
+			obj[key]._value = value;
 		} else {
 			// For params that are regular values,
 			// replace the default value itself with the passed value.
@@ -218,7 +227,7 @@ function resolve(obj, accessors, thisvar) {
 		// If the value isn't an accessor but is a TubuxProxy,
 		// set the property to the proxy's value.
 		} else if (value instanceof TubuxProxy) {
-			obj[key] = value.value;
+			obj[key] = value._value;
 		}
 	});
 	return accessors;
@@ -233,7 +242,7 @@ function unclaim(accessors) {
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
-	return proxy instanceof TubuxProxy && proxy.internals(token)[flag];
+	return proxy instanceof TubuxProxy && proxy._internals(token)[flag];
 }
 
 
@@ -244,8 +253,8 @@ function TubuxProxy(val) {
 	var internals = {};
 	if (val instanceof TubuxProxy) {
 		// Copy the `internals` object.
-		assign(internals, val.internals(token));
-		val = val.value;
+		assign(internals, val._internals(token));
+		val = val._value;
 		
 		// Copy the `listen` array.
 		if (internals.listen) {
@@ -253,8 +262,8 @@ function TubuxProxy(val) {
 		}
 	}
 	assign(this, {
-		value: val,
-		internals: function (access) {
+		_value: val,
+		_internals: function (access) {
 			if (access === token) {
 				return internals;
 			}
@@ -269,7 +278,7 @@ function addFlags(proto, flags) {
 			if (!arguments.length) {
 				val = true;
 			}
-			this.internals(token)[name] = 
+			this._internals(token)[name] = 
 				sanitizer ?
 					sanitizer.call(this, val, name) :
 					val;
@@ -285,10 +294,10 @@ function arrayFlag(flagName, sanitizer) {
 		if (sanitizer) {
 			sanitizer.call(this, val, flagName);
 		}
-		var array = this.internals(token)[flagName] || [];
+		var array = this._internals(token)[flagName] || [];
 		if (
 			(val = functionOrNull(val)) &&
-			array.indexOf(val) < 0
+			array[idx](val) < 0
 		) {
 			array.push(val);
 		}
@@ -300,7 +309,7 @@ function arrayFlag(flagName, sanitizer) {
 // to only be used on accessors.
 function accessorsOnlySanitizer(val, flagName) {
 	/*jshint validthis:true */
-	if (!this.internals(token).accessor) {
+	if (!this._internals(token).accessor) {
 		accessErrorThrower(E_ACCESSORONLY, flagName)();
 	}
 	return val;
@@ -329,7 +338,7 @@ TubuxProxy[pt].generate = function (obj, key) {
 		value, // declare but don't set yet
 		
 		// Get internals
-		internals = self.internals(token),
+		internals = self._internals(token),
 		filter = internals.filter || [],
 		readonly = internals.readonly,
 		writeonly = internals.writeonly,
@@ -424,7 +433,7 @@ TubuxProxy[pt].generate = function (obj, key) {
 	
 		// Set a function for transforming any values set to this accessor.
 		filter: function (fn) {
-			if (filter.indexOf(fn) < 0) {
+			if (filter[idx](fn) < 0) {
 				filter.push(fn);
 
 				// Re-set the value using only the new filter.
@@ -438,17 +447,26 @@ TubuxProxy[pt].generate = function (obj, key) {
 	
 		// Register a listener with this accessor.
 		listen: function (fn) {
-			if (listen.indexOf(fn) < 0) {
+			if (listen[idx](fn) < 0) {
 				listen.push(fn);
 			}
 			return this;
 		},
 	
 		// Unregister a listener from this accessor.
-		unlisten: function (listener) {
-			var index = listen.indexOf(listener);
+		unlisten: function (fn) {
+			var index = listen[idx](fn);
 			if (index >= 0) {
 				listen.splice(index, 1);
+			}
+			return this;
+		},
+	
+		// Unregister a filter from this accessor.
+		unfilter: function (fn) {
+			var index = filter[idx](fn);
+			if (index >= 0) {
+				filter.splice(index, 1);
 			}
 			return this;
 		}
@@ -474,7 +492,11 @@ TubuxProxy[pt].generate = function (obj, key) {
 
 	// Set the initial value after everything is set up,
 	// so that any default listener and/or filters hear about it.
-	privateAccess(this.value);
+	privateAccess(this._value);
+	
+	// Remove the temporary values
+	delete this._value;
+	delete this._internals;
 
 	// The external accessor gets assigned to the object by default.
 	return publicAccess; 
