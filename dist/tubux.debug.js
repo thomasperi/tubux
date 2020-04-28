@@ -28,8 +28,8 @@ var token = {};
 // Expose functionality.
 assign($$, {
 	assign: assign,
-	struct: struct,
 	secret: secret,
+	struct: struct,
 
 	// Expose error messages for comparison purposes.
 	errors: {
@@ -44,7 +44,11 @@ assign($$, {
 	debug: false
 });
 
-// Public $$ function & methods
+
+///// Surface /////
+
+// Public $$ is a function for creating parameter proxies,
+// as well as an object to attach the other methods to.
 function $$(value) {
 	return new TubuxProxy(value);
 }
@@ -133,8 +137,9 @@ function struct(settings) {
 		});
 		
 		// Resolve each member of this instance and each secret member.
-		resolve(self, accessors);
-		resolve(secrets, accessors);
+		// Attach both 
+		resolve(self, accessors, self);
+		resolve(secrets, accessors, self);
 		
 		// Automatically claim the `privateAccess` versions
 		// of all the accessors that were flagged `.secret()`.
@@ -170,7 +175,7 @@ function struct(settings) {
 	
 	// Resolve any static members that are proxies,
 	// and remove the `claim` method from any members that are accessors.
-	unclaim(resolve(TubuxStruct, {}));
+	unclaim(resolve(TubuxStruct, {}, false));
 	
 	// to-do: test proxies on statics
 	
@@ -178,6 +183,9 @@ function struct(settings) {
 	// Return this struct's constructor function.
 	return TubuxStruct;
 }
+
+
+///// Struct Helpers /////
 
 // Copy an option passed to the constructor onto `obj` (which is either the
 // instance or the secrets object) but only if there's already a property by
@@ -197,23 +205,21 @@ function transplant(obj, key, value) {
 	}
 }
 
-// Resolve TubuxProxy objects into their final forms, by applying the filter
-// on each proxy that has one, and then converting the proxy either into an
-// accessor function or a flat value.
-function resolve(obj, accessors) {
+// Resolve TubuxProxy objects into their final forms, by applying the filters
+// on each proxy, and then converting the proxy either into an accessor
+// function or a flat value.
+function resolve(obj, accessors, thisvar) {
 	eachOwn(obj, function (key, value) {
 		// Apply filter if it exists.
-		var filter = proxyFlag(value, 'filter');
-		if (filter) {
-			value.value = filter(value.value);
+		var filters = proxyFlag(value, 'filter');
+		if (filters) {
+			eachIndex(filters, function (filter) {
+				value.value = filter(value.value);
+			});
 		}
 		// If the value is an accessor, generate the accessor function.
 		if (proxyFlag(value, 'accessor')) {
-
-			// to-do: think about whether to really pass obj when obj === TubuxStruct
-			// which is what happens when resolving proxies assigned to statics.
-		
-			obj[key] = accessors[key] = value.generate(obj, key);
+			obj[key] = accessors[key] = value.generate(thisvar, key);
 		
 		// If the value isn't an accessor but is a TubuxProxy,
 		// set the property to the proxy's value.
@@ -231,34 +237,13 @@ function unclaim(accessors) {
 	});
 }
 
-// Nullify anything that isn't a function.
-function functionOrNull(fn) {
-	return (typeof fn === fun) ? fn : nil;
-}
-
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
 	return proxy instanceof TubuxProxy && proxy.internals(token)[flag];
 }
 
-// For...in loop.
-function eachOwn(obj, fn) {
-	for (var key in obj) {
-		if (obj[has](key)) {
-			fn(key, obj[key]);
-		}
-	}
-	return obj;
-}
 
-// For loop.
-function eachIndex(array, fn, first, count) {
-	var i, len = count || array.length;
-	for (i = first || 0; i < len; i++) {
-		fn(array[i], i);
-	}
-	return array;
-}
+///// Proxy Functions /////
 
 // A proxy for preprocessing parameter values.
 function TubuxProxy(val) {
@@ -299,31 +284,23 @@ function addFlags(proto, flags) {
 	});
 }
 
-// Add those flagging methods.
-addFlags(TubuxProxy[pt], {
-	// Used by constructor
-	accessor: nil,
-	required: nil,
-	secret: nil,
-	
-	// Used by constructor and accessors
-	filter: functionOrNull,
-
-	// Used only in accessors
-	readonly: accessorsOnlySanitizer,
-	writeonly: accessorsOnlySanitizer,
-	listen: function (val) {
-		accessorsOnlySanitizer.call(this, val, 'listen');
-		var listen = this.internals(token).listen || [];
+// Produce a flagging function that adds its argument to an array
+// instead of setting a static value.
+function arrayFlag(flagName, sanitizer) {
+	return function (val) {
+		if (sanitizer) {
+			sanitizer.call(this, val, flagName);
+		}
+		var array = this.internals(token)[flagName] || [];
 		if (
 			(val = functionOrNull(val)) &&
-			listen.indexOf(val) < 0
+			array.indexOf(val) < 0
 		) {
-			listen.push(val);
+			array.push(val);
 		}
-		return listen;
-	}
-});
+		return array;
+	};
+}
 
 // A sanitizer for `addFlags` to allow the given argument flag
 // to only be used on accessors.
@@ -335,6 +312,22 @@ function accessorsOnlySanitizer(val, flagName) {
 	return val;
 }
 
+// Add those flagging methods.
+addFlags(TubuxProxy[pt], {
+	// Used by constructor
+	accessor: nil,
+	required: nil,
+	secret: nil,
+	
+	// Used by constructor and accessors
+	filter: arrayFlag('filter'),
+
+	// Used only in accessors
+	readonly: accessorsOnlySanitizer,
+	writeonly: accessorsOnlySanitizer,
+	listen: arrayFlag('listen', accessorsOnlySanitizer)
+});
+
 // Generate an accessor function that gets or sets a value
 // depending on whether the function receives an argument.
 TubuxProxy[pt].generate = function (obj, key) {
@@ -343,7 +336,7 @@ TubuxProxy[pt].generate = function (obj, key) {
 		
 		// Get internals
 		internals = self.internals(token),
-		filter = internals.filter,
+		filter = internals.filter || [],
 		readonly = internals.readonly,
 		writeonly = internals.writeonly,
 		listen = internals.listen || [],
@@ -382,15 +375,23 @@ TubuxProxy[pt].generate = function (obj, key) {
 
 	// Set a new possibly-filtered value and update any listeners.
 	function set(newValue) {
-		var oldValue = value;
-		value = filter ?
-			filter(newValue) :
-			newValue;
-		
+		if (filter) {
+			eachIndex(filter, function (fn) {
+				if (fn) {
+					newValue = fn.call(obj, newValue);
+					
+					// to-do: test `this` in filters
+				}
+			});
+		}
+
 		// Only publish to listeners if the value has actually changed.
+		var oldValue = value;
+		value = newValue;
 		if (oldValue !== value) {
 			methods.publish();
 		}
+		
 	}
 
 	// An unfettered accessor function for private use within the struct.
@@ -421,6 +422,8 @@ TubuxProxy[pt].generate = function (obj, key) {
 				eachIndex(listen, function (listener) {
 					if (listener) {
 						listener.call(obj, value);
+						
+						// to-do: test `this` in listeners
 					}
 				});
 			}
@@ -429,8 +432,9 @@ TubuxProxy[pt].generate = function (obj, key) {
 	
 		// Set a function for transforming any values set to this accessor.
 		filter: function (fn) {
-			// Set the new filter function.
-			filter = functionOrNull(fn);
+			if (filter.indexOf(fn) < 0) {
+				filter.push(fn);
+			}
 	
 			// Re-set the value with the new filter.
 			privateAccess(value);
@@ -441,9 +445,9 @@ TubuxProxy[pt].generate = function (obj, key) {
 		},
 	
 		// Register a listener with this accessor.
-		listen: function (listener) {
-			if (listen.indexOf(listener) < 0) {
-				listen.push(listener);
+		listen: function (fn) {
+			if (listen.indexOf(fn) < 0) {
+				listen.push(fn);
 			}
 			return this;
 		},
@@ -484,6 +488,33 @@ TubuxProxy[pt].generate = function (obj, key) {
 	return publicAccess; 
 };
 
+
+///// General Helpers /////
+
+// For...in loop.
+function eachOwn(obj, fn) {
+	for (var key in obj) {
+		if (obj[has](key)) {
+			fn(key, obj[key]);
+		}
+	}
+	return obj;
+}
+
+// For loop.
+function eachIndex(array, fn, first) {
+	var i, len = array.length;
+	for (i = first || 0; i < len; i++) {
+		fn(array[i], i);
+	}
+	return array;
+}
+
+// Nullify anything that isn't a function.
+function functionOrNull(fn) {
+	return (typeof fn === fun) ? fn : nil;
+}
+
 // Produce a function that throws an error with the supplied message and
 // property name.
 function accessErrorThrower(message, key) {
@@ -494,6 +525,9 @@ function accessErrorThrower(message, key) {
 		};
 	};
 }
+
+
+///// Debugging /////
 
 // Define a function for internal debugging that can be turned on and off again
 // in individual unit tests, rather than writing debugging info to the console
