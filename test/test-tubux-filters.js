@@ -335,15 +335,16 @@ require('./test-tubux.js')(function ($$) {
 
 			var Person = $$.struct({
 				params: {
-					name: $$('John Doe').accessor(),
+					name: $$('John Doe')
+						.accessor()
+						.filter(function (val) {
+							return this.prefix + val;
+						}),
 					prefix: 'My name is '
 				}
 			});
 
 			var p = new Person();
-			p.name.filter(function (val) {
-				return this.prefix + val;
-			});
 			
 			assert.equal(p.name(), 'My name is John Doe');
 			

@@ -372,6 +372,30 @@ require('./test-tubux.js')(function ($$) {
 
 		});
 
+		it('this in listeners', function () {
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe').accessor().listen(function (val) {
+						this.a = val;
+					})
+				}
+			});
+
+			var p = new Person();
+			p.name.listen(function (val) {
+				this.b = val;
+			});
+			
+			assert.equal(p.a, 'John Doe');
+			assert.equal(p.b, undefined);
+			
+			p.name('Jane Doe');
+
+			assert.equal(p.a, 'Jane Doe');
+			assert.equal(p.b, 'Jane Doe');
+
+		});
 	});
 
 });

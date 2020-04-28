@@ -373,8 +373,6 @@ TubuxProxy[pt].generate = function (obj, key) {
 			eachIndex(filter, function (fn) {
 				if (fn) {
 					newValue = fn.call(obj, newValue);
-				
-					// to-do: test `this` in filters
 				}
 			});
 		}
@@ -418,8 +416,6 @@ TubuxProxy[pt].generate = function (obj, key) {
 				eachIndex(listen, function (listener) {
 					if (listener) {
 						listener.call(obj, value);
-						
-						// to-do: test `this` in listeners
 					}
 				});
 			}
