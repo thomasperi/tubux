@@ -236,6 +236,35 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 
+		it('multiple filters', function () {
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe').accessor()
+				}
+			});
+
+			var p = new Person();
+			(p.name
+				.filter(function (val) {
+					return String(val).replace('o', 'O');
+				})
+				.filter(function (val) {
+					return String(val).replace('n', 'N');
+				})
+				.filter(function (val) {
+					return String(val).replace('J', 'j');
+				})
+			);
+			
+			assert.equal(p.name(), 'jOhN DOe');
+			
+			p.name('Jane Doe');
+
+			assert.equal(p.name(), 'jaNe DOe');
+
+		});
+
 	});
 
 });

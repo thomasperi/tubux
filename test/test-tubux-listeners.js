@@ -223,6 +223,81 @@ require('./test-tubux.js')(function ($$) {
 			assert.notEqual(external, 'Earl');
 		});
 
+		it('multiple listeners', function () {
+		
+			var a, b, c;
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe').accessor()
+				}
+			});
+
+			var p = new Person();
+			(p.name
+				.listen(function (val) {
+					a = val;
+				})
+				.listen(function (val) {
+					b = val;
+				})
+				.listen(function (val) {
+					c = val;
+				})
+			);
+			
+			p.name('Jane Doe');
+
+			assert.equal(a, 'Jane Doe');
+			assert.equal(b, 'Jane Doe');
+			assert.equal(c, 'Jane Doe');
+
+		});
+
+		it('multiple listeners with multiple filters', function () {
+		
+			var a, b, c;
+
+			var Person = $$.struct({
+				params: {
+					name: $$('John Doe').accessor()
+				}
+			});
+
+			var p = new Person();
+			(p.name
+				.listen(function (val) {
+					a = val;
+				})
+				.filter(function (val) {
+					return String(val).replace('o', 'O');
+				})
+				.listen(function (val) {
+					b = val;
+				})
+				.listen(function (val) {
+					c = val;
+				})
+				.filter(function (val) {
+					return String(val).replace('n', 'N');
+				})
+				.filter(function (val) {
+					return String(val).replace('J', 'j');
+				})
+			);
+			
+			assert.equal(a, 'jOhN DOe');
+			assert.equal(b, 'jOhN DOe');
+			assert.equal(c, 'jOhN DOe');
+
+			p.name('Jane Doe');
+
+			assert.equal(a, 'jaNe DOe');
+			assert.equal(b, 'jaNe DOe');
+			assert.equal(c, 'jaNe DOe');
+
+		});
+
 	});
 
 });
