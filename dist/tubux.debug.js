@@ -247,16 +247,20 @@ function proxyFlag(proxy, flag) {
 
 // A proxy for preprocessing parameter values.
 function TubuxProxy(val) {
-	var flags = {};
+	var flags = {
+		listen: [],
+		filter: []
+	};
 	if (val instanceof TubuxProxy) {
-		// Copy the `flags` object.
+		// Copy the `flags` object from the original proxy.
 		assign(flags, val._flags);
+		
+		// Copy the `_value` from the original.
 		val = val._value;
 		
-		// Copy the `listen` array.
-		if (flags.listen) {
-			flags.listen = [].slice.call(flags.listen);
-		}
+		// Copy the `listen` and `filter` arrays.
+		flags.listen = flags.listen.slice();
+		flags.filter = flags.filter.slice();
 	}
 	assign(this, {
 		// underscore properties are terser-manglable.
@@ -288,7 +292,7 @@ function arrayFlag(flagName, sanitizer) {
 		if (sanitizer) {
 			sanitizer.call(this, val, flagName);
 		}
-		var array = this._flags[flagName] || [];
+		var array = this._flags[flagName];
 		if (
 			(val = functionOrNull(val)) &&
 			array[idx](val) < 0
@@ -317,9 +321,9 @@ addFlags(TubuxProxy[pt], {
 	secret: nil,
 	
 	// Used only in accessors
-	filter: arrayFlag('filter'),
 	readonly: accessorsOnlySanitizer,
 	writeonly: accessorsOnlySanitizer,
+	filter: arrayFlag('filter', accessorsOnlySanitizer),
 	listen: arrayFlag('listen', accessorsOnlySanitizer)
 });
 
@@ -331,10 +335,10 @@ function generate (self, obj, key) {
 		
 		// Get flags
 		flags = self._flags,
-		filter = flags.filter || [],
 		readonly = flags.readonly,
 		writeonly = flags.writeonly,
-		listen = flags.listen || [],
+		listen = flags.listen,
+		filter = flags.filter,
 	
 		// functions for throwing errors
 		throw_readonly = accessErrorThrower(E_READONLY, key),
