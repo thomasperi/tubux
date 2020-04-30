@@ -23,9 +23,6 @@ var has = 'hasOwnProperty',
 	nil = null,
 	undef; // leave undefined 'cause that's what it is.
 
-// A unique object to prevent accidental outside use of internal features.
-var token = {};
-
 // Expose functionality.
 assign($$, {
 	assign: assign,
@@ -222,7 +219,7 @@ function resolve(obj, accessors, thisvar) {
 		// If the value is an accessor, generate the accessor function.
 		// This applies filters and listeners too.
 		if (proxyFlag(value, 'accessor')) {
-			obj[key] = accessors[key] = value._generate(thisvar, key);
+			obj[key] = accessors[key] = generate(value, thisvar, key);
 		
 		// If the value isn't an accessor but is a TubuxProxy,
 		// set the property to the proxy's value.
@@ -242,7 +239,7 @@ function unclaim(accessors) {
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
-	return proxy instanceof TubuxProxy && proxy._internals(token)[flag];
+	return proxy instanceof TubuxProxy && proxy._internals[flag];
 }
 
 
@@ -253,7 +250,7 @@ function TubuxProxy(val) {
 	var internals = {};
 	if (val instanceof TubuxProxy) {
 		// Copy the `internals` object.
-		assign(internals, val._internals(token));
+		assign(internals, val._internals);
 		val = val._value;
 		
 		// Copy the `listen` array.
@@ -264,11 +261,7 @@ function TubuxProxy(val) {
 	assign(this, {
 		// underscore properties are terser-manglable.
 		_value: val,
-		_internals: function (access) {
-			if (access === token) {
-				return internals;
-			}
-		}
+		_internals: internals
 	});
 }
 
@@ -279,7 +272,7 @@ function addFlags(proto, flags) {
 			if (!arguments.length) {
 				val = true;
 			}
-			this._internals(token)[name] = 
+			this._internals[name] = 
 				sanitizer ?
 					sanitizer.call(this, val, name) :
 					val;
@@ -295,7 +288,7 @@ function arrayFlag(flagName, sanitizer) {
 		if (sanitizer) {
 			sanitizer.call(this, val, flagName);
 		}
-		var array = this._internals(token)[flagName] || [];
+		var array = this._internals[flagName] || [];
 		if (
 			(val = functionOrNull(val)) &&
 			array[idx](val) < 0
@@ -310,7 +303,7 @@ function arrayFlag(flagName, sanitizer) {
 // to only be used on accessors.
 function accessorsOnlySanitizer(val, flagName) {
 	/*jshint validthis:true */
-	if (!this._internals(token).accessor) {
+	if (!this._internals.accessor) {
 		accessErrorThrower(E_ACCESSORONLY, flagName)();
 	}
 	return val;
@@ -332,12 +325,12 @@ addFlags(TubuxProxy[pt], {
 
 // Generate an accessor function that gets or sets a value
 // depending on whether the function receives an argument.
-TubuxProxy[pt]._generate = function (obj, key) {
-	var self = this,
-		value, // declare but don't set yet
+// (This method gets called on TubuxProxy instances as `this`)
+function generate (self, obj, key) {
+	var value, // declare but don't set yet
 		
 		// Get internals
-		internals = self._internals(token),
+		internals = self._internals,
 		filter = internals.filter || [],
 		readonly = internals.readonly,
 		writeonly = internals.writeonly,
@@ -491,15 +484,11 @@ TubuxProxy[pt]._generate = function (obj, key) {
 
 	// Set the initial value after everything is set up,
 	// so that any default listener and/or filters hear about it.
-	privateAccess(this._value);
+	privateAccess(self._value);
 	
-	// Remove the temporary values
-	delete this._value;
-	delete this._internals;
-
 	// The external accessor gets assigned to the object by default.
 	return publicAccess; 
-};
+}
 
 
 ///// General Helpers /////
