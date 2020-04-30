@@ -222,7 +222,7 @@ function resolve(obj, accessors, thisvar) {
 		// If the value is an accessor, generate the accessor function.
 		// This applies filters and listeners too.
 		if (proxyFlag(value, 'accessor')) {
-			obj[key] = accessors[key] = value.generate(thisvar, key);
+			obj[key] = accessors[key] = value._generate(thisvar, key);
 		
 		// If the value isn't an accessor but is a TubuxProxy,
 		// set the property to the proxy's value.
@@ -323,10 +323,8 @@ addFlags(TubuxProxy[pt], {
 	required: nil,
 	secret: nil,
 	
-	// Used by constructor and accessors
-	filter: arrayFlag('filter'),
-
 	// Used only in accessors
+	filter: arrayFlag('filter'),
 	readonly: accessorsOnlySanitizer,
 	writeonly: accessorsOnlySanitizer,
 	listen: arrayFlag('listen', accessorsOnlySanitizer)
@@ -334,7 +332,7 @@ addFlags(TubuxProxy[pt], {
 
 // Generate an accessor function that gets or sets a value
 // depending on whether the function receives an argument.
-TubuxProxy[pt].generate = function (obj, key) {
+TubuxProxy[pt]._generate = function (obj, key) {
 	var self = this,
 		value, // declare but don't set yet
 		
