@@ -330,7 +330,7 @@ addFlags(TubuxProxy[pt], {
 // Generate an accessor function that gets or sets a value
 // depending on whether the function receives an argument.
 // (This method gets called on TubuxProxy instances as `this`)
-function generate (self, obj, key) {
+function generate(self, obj, key) {
 	var value, // declare but don't set yet
 		
 		// Get flags
@@ -351,7 +351,7 @@ function generate (self, obj, key) {
 		// If this accessor is readonly, return the value,
 		// or throw an exception if trying to set a new value.
 		readonly ? function () {
-			if (arguments.length === 0) {
+			if (!arguments.length) {
 				return value;
 			}
 			throw_readonly();
@@ -360,8 +360,12 @@ function generate (self, obj, key) {
 		// If this accessor is writeonly, set the new value
 		// if provided, or throw an exception if trying to read.
 		writeonly ? function () {
-			if (arguments.length > 0) {
-				set(arguments[0]);
+			if (arguments.length) {
+				// Filter this even though it's writeonly, because the filters
+				// might have been assigned directly to the TubuxProxy.
+				// Adding a filter isn't allowed on writeonly public accessor
+				// functions.
+				set_with_filter(arguments[0]);
 				return value;
 			}
 			throw_writeonly();
@@ -373,7 +377,7 @@ function generate (self, obj, key) {
 
 
 	// Set a new possibly-filtered value and update any listeners.
-	function set(newValue) {
+	function set_with_filter(newValue) {
 		if (filter) {
 			eachIndex(filter, function (fn) {
 				if (fn) {
@@ -381,10 +385,11 @@ function generate (self, obj, key) {
 				}
 			});
 		}
-		really_set(newValue);
+		set_without_filter(newValue);
 	}
 	
-	function really_set(newValue) {
+	// Set a new value without filtering it.
+	function set_without_filter(newValue) {
 		// Only publish to listeners if the value has actually changed.
 		var oldValue = value;
 		value = newValue;
@@ -397,8 +402,8 @@ function generate (self, obj, key) {
 	function privateAccess() {
 		// If there's an argument, act as a setter and assign it as this
 		// accessor's value and inform all the listeners.
-		if (arguments.length > 0) {
-			set(arguments[0]);
+		if (arguments.length) {
+			set_with_filter(arguments[0]);
 		}
 		// Return the value back even when setting.
 		return value;
@@ -433,7 +438,9 @@ function generate (self, obj, key) {
 				filter.push(fn);
 
 				// Re-set the value using only the new filter.
-				really_set(fn.call(obj, value));
+				set_without_filter(
+					fn.call(obj, value) // call the filter before passing
+				);
 			}
 	
 			// All the methods of accessor functions return either the public or
