@@ -239,7 +239,7 @@ function unclaim(accessors) {
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
-	return proxy instanceof TubuxProxy && proxy._internals[flag];
+	return proxy instanceof TubuxProxy && proxy._flags[flag];
 }
 
 
@@ -247,21 +247,21 @@ function proxyFlag(proxy, flag) {
 
 // A proxy for preprocessing parameter values.
 function TubuxProxy(val) {
-	var internals = {};
+	var flags = {};
 	if (val instanceof TubuxProxy) {
-		// Copy the `internals` object.
-		assign(internals, val._internals);
+		// Copy the `flags` object.
+		assign(flags, val._flags);
 		val = val._value;
 		
 		// Copy the `listen` array.
-		if (internals.listen) {
-			internals.listen = [].slice.call(internals.listen);
+		if (flags.listen) {
+			flags.listen = [].slice.call(flags.listen);
 		}
 	}
 	assign(this, {
 		// underscore properties are terser-manglable.
 		_value: val,
-		_internals: internals
+		_flags: flags
 	});
 }
 
@@ -272,7 +272,7 @@ function addFlags(proto, flags) {
 			if (!arguments.length) {
 				val = true;
 			}
-			this._internals[name] = 
+			this._flags[name] = 
 				sanitizer ?
 					sanitizer.call(this, val, name) :
 					val;
@@ -288,7 +288,7 @@ function arrayFlag(flagName, sanitizer) {
 		if (sanitizer) {
 			sanitizer.call(this, val, flagName);
 		}
-		var array = this._internals[flagName] || [];
+		var array = this._flags[flagName] || [];
 		if (
 			(val = functionOrNull(val)) &&
 			array[idx](val) < 0
@@ -303,7 +303,7 @@ function arrayFlag(flagName, sanitizer) {
 // to only be used on accessors.
 function accessorsOnlySanitizer(val, flagName) {
 	/*jshint validthis:true */
-	if (!this._internals.accessor) {
+	if (!this._flags.accessor) {
 		accessErrorThrower(E_ACCESSORONLY, flagName)();
 	}
 	return val;
@@ -329,12 +329,12 @@ addFlags(TubuxProxy[pt], {
 function generate (self, obj, key) {
 	var value, // declare but don't set yet
 		
-		// Get internals
-		internals = self._internals,
-		filter = internals.filter || [],
-		readonly = internals.readonly,
-		writeonly = internals.writeonly,
-		listen = internals.listen || [],
+		// Get flags
+		flags = self._flags,
+		filter = flags.filter || [],
+		readonly = flags.readonly,
+		writeonly = flags.writeonly,
+		listen = flags.listen || [],
 	
 		// functions for throwing errors
 		throw_readonly = accessErrorThrower(E_READONLY, key),
