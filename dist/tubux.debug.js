@@ -1,6 +1,6 @@
 (function(P,U,L){L(U,P);}(this,function(){'use strict';
 /*!
- * Tubux v1.0.1
+ * Tubux v1.0.2-dev
  * https://github.com/thomasperi/tubux#readme
  * Thomas Peri <hello@thomasperi.net>
  * MIT License
@@ -13,8 +13,6 @@ var E_WRITEONLY = 'this accessor is write-only',
 	E_ACCESSORONLY = 'this flag is only available after applying the .accessor() flag',
 	E_PROTOPROXY = 'assigning $$(...) values to the prototype is not allowed';
 	
-	// to-do: test E_PROTOPROXY
-
 // Aid minification with some shortcuts.
 var has = 'hasOwnProperty',
 	pt = 'prototype',
@@ -26,7 +24,7 @@ var has = 'hasOwnProperty',
 // Expose functionality.
 assign($$, {
 	assign: assign,
-	detach: detach,
+// 	detach: detach, // to-do: maybe bring this back, see method below
 	secret: secret,
 	struct: struct,
 
@@ -62,12 +60,14 @@ function assign(target) {
 	return target;
 }
 
+// to-do: Secrets kind of make this moot, but I'm keeping it around
+// in case it looks like it might be nice to have later.
 // Remove a property and return its value
-function detach(self, prop) {
-	var val = self[prop];
-	delete self[prop];
-	return val;
-}
+// function detach(self, prop) {
+// 	var val = self[prop];
+// 	delete self[prop];
+// 	return val;
+// }
 
 // Make the entire params object secret.
 function secret(params) {
@@ -183,9 +183,6 @@ function struct(settings) {
 	// and remove the `claim` method from any members that are accessors.
 	unclaim(resolve(TubuxStruct, {}, false));
 	
-	// to-do: test proxies on statics
-	
-
 	// Return this struct's constructor function.
 	return TubuxStruct;
 }
