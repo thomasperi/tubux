@@ -197,7 +197,7 @@ function transplant(obj, key, value) {
 	if (obj[has](key)) {
 		// If the option's associated default value is a TubuxProxy,
 		// replace that TubuxProxy's value with the passed value.
-		if (obj[key] instanceof TubuxProxy) {
+		if (proxyFlag(obj[key])) {
 			obj[key]._value = value;
 		} else {
 			// For params that are regular values,
