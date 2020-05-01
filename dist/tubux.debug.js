@@ -1,6 +1,6 @@
 (function(P,U,L){L(U,P);}(this,function(){'use strict';
 /*!
- * Tubux v1.0.2
+ * Tubux v1.0.2+dev
  * https://github.com/thomasperi/tubux#readme
  * Thomas Peri <hello@thomasperi.net>
  * MIT License
@@ -73,7 +73,7 @@ function assign(target) {
 function secret(params) {
 	return eachOwn(params, function (key, value) {
 		// Convert all the flat, non-proxy values to proxies.
-		if (!(value instanceof TubuxProxy)) {
+		if (!(proxyFlag(value))) {
 			value = params[key] = $$(value);
 		}
 		value.secret();
@@ -120,7 +120,7 @@ function struct(settings) {
 			}
 			
 			// If the value is a TubuxProxy, clone it.
-			if (val instanceof TubuxProxy) {
+			if (proxyFlag(val)) {
 				val = new TubuxProxy(val);
 			}
 			
@@ -168,7 +168,7 @@ function struct(settings) {
 	// Prevent accessors from being assigned to the prototype, because there's
 	// no reason to have them there, and their use would be confusing.
 	eachOwn(settings.proto, function (key, value) {
-		if (value instanceof TubuxProxy) {
+		if (proxyFlag(value)) {
 			accessErrorThrower(E_PROTOPROXY, key)();
 		}
 	});
@@ -220,7 +220,7 @@ function resolve(obj, accessors, thisvar) {
 		
 		// If the value isn't an accessor but is a TubuxProxy,
 		// set the property to the proxy's value.
-		} else if (value instanceof TubuxProxy) {
+		} else if (proxyFlag(value)) {
 			obj[key] = value._value;
 		}
 	});
@@ -236,7 +236,7 @@ function unclaim(accessors) {
 
 // Is `proxy` a TubuxProxy instance, and does it have its `flag` flag set?
 function proxyFlag(proxy, flag) {
-	return proxy instanceof TubuxProxy && proxy._flags[flag];
+	return proxy instanceof TubuxProxy && (!flag || proxy._flags[flag]);
 }
 
 
@@ -248,7 +248,7 @@ function TubuxProxy(val) {
 		listen: [],
 		filter: []
 	};
-	if (val instanceof TubuxProxy) {
+	if (proxyFlag(val)) {
 		// Copy the `flags` object from the original proxy.
 		assign(flags, val._flags);
 		
