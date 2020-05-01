@@ -3,12 +3,15 @@
   "version": "1.0.1",
   "description": "Classy Constructors and Accessors in JavaScript",
   "main": "dist/tubux.min.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "gulp test",
     "preversion": "npm test",
     "postversion": "git push && git push --tags"
   },
-  "homepage": "https://github.com/thomasperi/tubux#readme",
+  "homepage": "https://thomasperi.github.io/tubux/",
   "author": "Thomas Peri <hello@thomasperi.net>",
   "license": "MIT",
   "devDependencies": {
