@@ -348,24 +348,24 @@ function generate(self, obj, key) {
 		// If this accessor is readonly, return the value,
 		// or throw an exception if trying to set a new value.
 		readonly ? function () {
-			if (!arguments.length) {
-				return value;
+			if (arguments.length) {
+				throw_readonly();
 			}
-			throw_readonly();
+			return value;
 		} :
 		
 		// If this accessor is writeonly, set the new value
 		// if provided, or throw an exception if trying to read.
 		writeonly ? function () {
-			if (arguments.length) {
-				// Filter this even though it's writeonly, because the filters
-				// might have been assigned directly to the TubuxProxy.
-				// Adding a filter isn't allowed on writeonly public accessor
-				// functions.
-				set_with_filter(arguments[0]);
-				return value;
+			if (!arguments.length) {
+				throw_writeonly();
 			}
-			throw_writeonly();
+			// Filter this even though it's writeonly, because the filters
+			// might have been assigned directly to the TubuxProxy.
+			// Adding a filter isn't allowed on writeonly public accessor
+			// functions.
+			set_with_filter(arguments[0]);
+			return value;
 		} :
 		
 		// If this accessor is both writable and readable,
