@@ -26,13 +26,31 @@ require('./test-tubux.js')(function ($$) {
 			}
 		});
 	
-		it('default params', function () {
+		it('plain', function () {
+			var p = Person();
+			assert(!(p instanceof Person));
+			assert(p.hasOwnProperty('toString'));
+		});
+
+		it('instance', function () {
+			var p = new Person();
+			assert(p instanceof Person);
+			assert(!p.hasOwnProperty('toString'));
+		});
+
+		it('default params (instance)', function () {
 			var p = new Person();
 			assert.equal(p.first, 'John');
 			assert.equal(p.last, 'Doe');
 		});
 
-		it('override one default', function () {
+		it('default params (plain)', function () {
+			var p = Person();
+			assert.equal(p.first, 'John');
+			assert.equal(p.last, 'Doe');
+		});
+
+		it('override one default (instance)', function () {
 			var p = new Person({
 				first: 'Jane'
 			});
@@ -40,7 +58,15 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(p.last, 'Doe');
 		});
 
-		it('override both defaults', function () {
+		it('override one default (plain)', function () {
+			var p = Person({
+				first: 'Jane'
+			});
+			assert.equal(p.first, 'Jane');
+			assert.equal(p.last, 'Doe');
+		});
+
+		it('override both defaults (instance)', function () {
 			var p = new Person({
 				first: 'Ada',
 				last: 'Lovelace'
@@ -49,13 +75,35 @@ require('./test-tubux.js')(function ($$) {
 			assert.equal(p.last, 'Lovelace');
 		});
 
-		it('prototype toString default', function () {
+		it('override both defaults (plain)', function () {
+			var p = Person({
+				first: 'Ada',
+				last: 'Lovelace'
+			});
+			assert.equal(p.first, 'Ada');
+			assert.equal(p.last, 'Lovelace');
+		});
+
+		it('toString (instance)', function () {
 			var p = new Person();
 			assert.equal(String(p), 'John Doe');
 		});
 
-		it('prototype toString after params', function () {
+		it('toString (plain)', function () {
+			var p = Person();
+			assert.equal(String(p), 'John Doe');
+		});
+
+		it('toString after params (instance)', function () {
 			var p = new Person({
+				first: 'Ada',
+				last: 'Lovelace'
+			});
+			assert.equal(String(p), 'Ada Lovelace');
+		});
+
+		it('toString after params (plain)', function () {
+			var p = Person({
 				first: 'Ada',
 				last: 'Lovelace'
 			});

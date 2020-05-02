@@ -98,8 +98,10 @@ function struct(settings) {
 	
 	// Define the constructor function that `struct` will return.
 	function TubuxStruct (options) {
-		var // Keep this instance's `this` value for use in inner functions.
-			self = this,
+		var // Keep this instance's `this` value for use in inner functions,
+			// or create a new plain object if the constructor was invoked
+			// without `new`.
+			self = this || {},
 			
 			// An object for temporarily stashing all the accessors in.
 			accessors = {},
@@ -155,6 +157,11 @@ function struct(settings) {
 			}
 		});
 		
+		// If this is a plain object, copy the prototype members
+		if (!this) {
+			assign(self, settings.proto);
+		}
+		
 		// Call the construct function.
 		if (construct) {
 			construct.call(self, secrets);
@@ -163,6 +170,10 @@ function struct(settings) {
 		// After construct is done, no more accessors should have the
 		// `claim` method.
 		unclaim(accessors);
+		
+		// In case this is a plain object instead of an instance of the
+		// constructor, return the instance-or-object
+		return self;
 	}
 	
 	// Prevent accessors from being assigned to the prototype, because there's
