@@ -1,6 +1,6 @@
 {
   "name": "tubux",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Classy Constructors and Accessors in JavaScript",
   "main": "dist/tubux.min.js",
   "files": [
