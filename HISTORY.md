@@ -1,6 +1,6 @@
 # Tubux History
 
-## v1.0.2+dev
+## v1.0.3
 * Started HISTORY.md
 * Added support for plain objects when structs are instantiated without `new`
 

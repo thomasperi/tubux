@@ -1,6 +1,6 @@
 
 /*!
- * Tubux v1.0.2+dev
+ * Tubux v1.0.3
  * https://github.com/thomasperi/tubux#readme
  * Thomas Peri <hello@thomasperi.net>
  * MIT License
